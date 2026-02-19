@@ -13,7 +13,7 @@ function plot_deck(deck)
         category_names[i+2] = "For port $i"
     end
 
-    println(length(category_names))
+
     labels = sort(collect(keys(category_names)))
     names = [category_names[label] for label in labels]
 
@@ -29,7 +29,7 @@ function plot_deck(deck)
     end
     
     colors = [color_dict[label] for label in labels]
-    print(colors)
+
     fig = Figure(size = (600, 400))
     ax = Axis(fig[1,1], aspect = 1, yreversed = true)
     hm = CairoMakie.heatmap!(ax, deck, colormap = colors, colorrange = (0, num_of_ports+2))
@@ -39,13 +39,3 @@ function plot_deck(deck)
 
     fig
 end
-
-A = [1  1  1  1  1  1  1  1  3  3;
-     4  4  4  4  4  4  4  4  4  4;
-     1  4  1  1  1  1  1  1  1  1;
-     4  3  4  1  1  1  1  1  3  1;
-     1  4  4  4  4  4  4  1  1  1;
-     1  1  1  1  1  1  1  1  1  1;
-     0  0  0  2  2  2  2  0  0  0]
-
-plot_deck(A)

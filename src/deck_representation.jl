@@ -27,5 +27,3 @@ function create_deck(deck)
     return outline
 end
 
-dstruct = Deck(7,10,[[1 1],[1 2],[2 1],[7 1],[7 2],[7 3],[7 8],[7 9],[7 10]], [[7 4],[7 5],[7 6],[7 7]])
-dmat = create_deck(dstruct)
