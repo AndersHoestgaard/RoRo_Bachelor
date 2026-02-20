@@ -14,18 +14,25 @@ function generate_arrival_times_exp(n,lambd=0.2)
     return [rand(Exponential(lambd)) for _ in 1:n]
 end
 
+function generate_rev(n,mu=1,sig=0.1)
+    return [rand(Normal(mu,sig)) for _ in 1:n]
+end
+
 struct Cargo
     type::String
     port::Int32
     arr::Float32
+    rev::Float32
 end
 
-function genereate_cargo_structs(n)
+function genereate_cargo_structs(n,seed = nothing)
+    
     types = generate_cargo_type(n)
     ports = generate_cargo_port(n)
     arr_times = generate_arrival_times_exp(n)
+    revs = generate_rev(n)
 
-    cargolist = [Cargo(types[i],ports[i],arr_times[i]) for i in 1:n]
+    cargolist = [Cargo(types[i],ports[i],arr_times[i],revs[i]) for i in 1:n]
 
     return cargolist
 end

@@ -50,10 +50,11 @@ function pri_rules2(deck,cargo, a=0.5)
         push!(scoreList, [k, a*(1/v.port) + (1-a)*v.arr])
     end
     scoreList = sort(scoreList, by = x -> x[2])
-
+    cargo_on = []
     for score in scoreList
         (id,_) = score
         cport = cargoDict[id].port
+        carg = cargoDict[id]
         placed = false
         for (i,row) in enumerate(eachrow(deck))
             if placed
@@ -66,12 +67,13 @@ function pri_rules2(deck,cargo, a=0.5)
                 if slot == 1
                     deck[i,j] = cport
                     placed = true
+                    push!(cargo_on, carg)
                 end
             
             end
             
         end
     end
-    return deck
+    return deck, cargo_on
 end
 
