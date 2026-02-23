@@ -1,15 +1,9 @@
 include(joinpath(pwd(), "src/cargo_generation.jl"))
 include("obj_func.jl")
 
-dir = joinpath(pwd(), "src/Heuristics")
-jl_files = filter(f -> endswith(f, ".jl"), readdir(dir))
-include.(joinpath.(dir, jl_files))
 
-
-
-
-
-function test1(sol_method, deck, n_cargo, n_sim)
+## Simulates solution method (heuristic) iteratively on random cargo
+function test1(sol_method, deck, n_cargo, n_sim) 
     obj_vals = []
 
     for i in 1:n_sim

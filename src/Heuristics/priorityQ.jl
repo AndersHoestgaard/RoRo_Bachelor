@@ -38,7 +38,7 @@ end
 
 #introduces parameter to weigh importance of minimizing shifts vs. minimizing waiting time. 
 #a=1 all importance to shifts, a=0 all importance to arrical times
-function pri_rules2(deck,cargo, a=0.5) 
+function pri_rules2(deck,cargo; a=0.5) 
     cargoDict = Dict()
     scoreList = []
 
@@ -56,11 +56,11 @@ function pri_rules2(deck,cargo, a=0.5)
         cport = cargoDict[id].port
         carg = cargoDict[id]
         placed = false
-        for (i,row) in enumerate(eachrow(deck))
+        for (j,col) in enumerate(eachcol(deck))
             if placed
                 continue
             end
-            for (j,slot) in enumerate(row)
+            for (i,slot) in enumerate(col)
                 if placed
                 continue
                 end
