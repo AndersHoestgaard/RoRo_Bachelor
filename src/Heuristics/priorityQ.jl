@@ -36,12 +36,12 @@ function pri_rules1(deck,cargo)
     return deck
 end
 
-#introduces parameter to weigh importance of minimizing shifts vs. minimizing waiting time. 
-#a=1 all importance to shifts, a=0 all importance to arrical times
 function pri_rules2(deck,cargo; a=0.5) 
     cargoDict = Dict()
     scoreList = []
-
+    deck = copy(deck)
+    cargo = copy(cargo)
+    h,w = size(deck)
     for (i,c) in enumerate(cargo)
         cargoDict["c$i"] = c
     end
@@ -50,7 +50,7 @@ function pri_rules2(deck,cargo; a=0.5)
         push!(scoreList, [k, a*(1/v.port) + (1-a)*v.arr])
     end
     scoreList = sort(scoreList, by = x -> x[2])
-    cargo_on = []
+    cargo_on = Matrix{Any}(nothing, h, w)
     for score in scoreList
         (id,_) = score
         cport = cargoDict[id].port
@@ -67,7 +67,7 @@ function pri_rules2(deck,cargo; a=0.5)
                 if slot == 1
                     deck[i,j] = cport
                     placed = true
-                    push!(cargo_on, carg)
+                    cargo_on[i,j] = carg
                 end
             
             end
