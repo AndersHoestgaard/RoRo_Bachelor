@@ -1,4 +1,4 @@
-function wait_time(arr_times, handling_time=2, num_operators=2)
+function wait_time(arr_times, handling_time=4/60, num_operators=3)
     if typeof(arr_times) == Vector{Cargo}
         arr_timestrav = copy(arr_times)
         arr_times = []
