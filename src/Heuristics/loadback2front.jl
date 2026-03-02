@@ -1,8 +1,4 @@
-include(joinpath(pwd(), "src/Cargo_instances/CargoA.jl"))
-include(joinpath(pwd(), "src/Cargo_instances/CargoB.jl"))
-include(joinpath(pwd(), "src/Decks/DeckA.jl"))
-include(joinpath(pwd(), "src/Decks/DeckB.jl"))
-include(joinpath(pwd(), "src/deck_representation.jl"))
+
 
 
 function load_back2front_random(cargo, deck)
