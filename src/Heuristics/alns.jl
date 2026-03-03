@@ -129,9 +129,35 @@ end
 function destroy_shifting_cost(deck, cargo_on;xi=0.2)
     _,V = shortest_path_like_hansen(deck)
     h,w = size(deck)
-    blockers = [[div(num[2], w)+1,num[2]%w +1] for num in V]
-    n_selected_blockers = maximum([(xi/2)*length(blockers),1])
-    selected_blockers = [popfirst!(shuffle!(blockers)) for n in 1:n_selected_blockers]
+    
+    n_cargo = 0
+    for (i, row) in enumerate(eachrow(deck))
+        for (j, slot) in enumerate(row)
+            if slot > 2
+                n_cargo +=1
+            end
+        end
+    end
+    
+    if isempty(V)
+        # Randomly sample cargo positions as blockers
+        cargo_positions = []
+        for i in 1:h
+            for j in 1:w
+                if deck[i,j] > 2
+                    push!(cargo_positions, [i,j])
+                end
+            end
+        end
+        n_selected_blockers = max(1, round(Int, xi * n_cargo / 2))
+        n_selected_blockers = min(n_selected_blockers, length(cargo_positions))
+        selected_blockers = shuffle!(cargo_positions)[1:n_selected_blockers]
+    else
+        blockers = [[div(num[2], w)+1,num[2]%w +1] for num in V]
+        n_selected_blockers = maximum([(xi/2)*length(blockers),1])
+        selected_blockers = [popfirst!(shuffle!(blockers)) for n in 1:n_selected_blockers]
+    end
+    
     rad = length(selected_blockers)
     Lloc =[]
     L = []
@@ -264,6 +290,10 @@ function repair_placement(deck, cargo2place,cargo_on)
 end
 
 function repair_random(deck, cargo2place, cargo_on)
+    if isempty(cargo2place)
+        @warn "Repair operator received complete deck"
+        return deck, cargo_on
+    end
     deck = copy(deck)
     h,w = size(deck)
 
@@ -278,13 +308,16 @@ function repair_random(deck, cargo2place, cargo_on)
     end
 
     shuffle!(locs)
-    cargo2place = sort(cargo2place, by = x -> x.port)
-    for loc in locs
-        c2p =  popfirst!(cargo2place)
+
+    n_to_place = min(length(locs), length(cargo2place))
+    for i in 1:n_to_place
+        loc = locs[i]
+        c2p = cargo2place[i]
         deck[loc[1], loc[2]] = c2p.port
         cargo_on[loc[1], loc[2]] = c2p
-        
     end
+
+    deleteat!(cargo2place, 1:n_to_place)
     return deck,cargo_on
 end
 
