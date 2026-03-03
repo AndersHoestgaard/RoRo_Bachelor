@@ -1,5 +1,6 @@
 using CairoMakie
 using PlotlyJS
+using Plots
 
 function plot_deck(deck)
     num_of_ports = maximum(deck)-2
@@ -48,8 +49,14 @@ function plot_deck(deck)
     fig
 end
 
-function plot_details(sol_details)
+function plot_solution_details(sol_details)
     tags = ["revenue", "waiting costs", "shifting costs"]
     vals = sol_details
     PlotlyJS.plot(bar(x=tags, y=vals))
+end
+
+function plot_alns_sim(results)
+    Plots.plot(1:length(results),results,xlabel = "number of iterations",
+    ylabel = "obj. val. of best solution")
+
 end
