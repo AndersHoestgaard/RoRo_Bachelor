@@ -3,7 +3,7 @@ function load_random(deck, cargo)
     deck=copy(deck)
     cargo=copy(cargo)
     h,w = size(deck)
-    cargo_on = []
+    cargo_on = Matrix{Any}(nothing, h, w)
     while !isempty(cargo) && 1 in deck
         i = rand(1:h)
         j = rand(1:w)
@@ -12,7 +12,7 @@ function load_random(deck, cargo)
             current_cargo = popfirst!(cargo)
             
             deck[i,j] = current_cargo.port
-            push!(cargo_on, current_cargo)
+            cargo_on[i,j] = current_cargo
 
         end
     end

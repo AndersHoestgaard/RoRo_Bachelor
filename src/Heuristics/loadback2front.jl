@@ -20,8 +20,6 @@ function load_back2front_random(cargo, deck)
             
         end
     end
-
-    
 end
 
 function load_back2front_sorted(cargo, deck)
