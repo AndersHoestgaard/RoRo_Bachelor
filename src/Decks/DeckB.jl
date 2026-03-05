@@ -6,3 +6,4 @@ ramp = [[7 4],[7 5],[7 6],[7 7]]
 
 deckBstruct = Deck(w,l,unava, ramp)
 deckBmat = create_deck(deckBstruct)
+deckBmat

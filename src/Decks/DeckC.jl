@@ -14,3 +14,4 @@ ramp = [[4 30],[5 30],[6 30],[7 30],[8 30],[9 30]]
 
 deckCstruct = Deck(w,l,unava, ramp)
 deckCmat = create_deck(deckCstruct)
+
