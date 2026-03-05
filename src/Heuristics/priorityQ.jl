@@ -2,7 +2,7 @@
 function pri_rules1(deck,cargo)
     cargoDict = Dict()
     scoreList = []
-
+    h,w=size(deck)
     for (i,c) in enumerate(cargo)
         cargoDict["c$i"] = c
     end
@@ -17,11 +17,11 @@ function pri_rules1(deck,cargo)
         (id,_) = score
         cport = cargoDict[id].port
         placed = false
-        for (i,row) in enumerate(eachrow(deck))
+        for (j,col) in enumerate(eachcol(deck))
             if placed
                 continue
             end
-            for (j,slot) in enumerate(row)
+            for (i,slot) in enumerate(col)
                 if placed
                 continue
                 end
