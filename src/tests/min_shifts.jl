@@ -1,4 +1,5 @@
 using Graphs, SimpleWeightedGraphs
+# Assuming cargo can move sideways freely and but only move up and down if space is available
 
 function get_c_loc(deck,port=1) #Get location of cargo for port
     portid = port+2
@@ -31,43 +32,56 @@ end
 function get_graph(deck) #Model deck as dir. weighted graph. 
     
     m, n = size(deck)
+    @assert n>m "Deck orientation is wrong"
+
     g = SimpleWeightedDiGraph(m * n)
         
     for i in 1:m
         for j in 1:n
             
-            # Skip empty slots
-            if deck[i,j] == 0
+            # Skip empty slots and slots that cant be accessed by trucks
+            if deck[i,j] == 0 
                 continue
             end
+
+            if j == n
+                continue
+            end
+
             
             current_node = (i-1)*n + j
             
-            # --- NORTH ---
-            if i > 1 && deck[i-1,j] != 0
-                neighbor_node = (i-2)*n + j
-                cost = deck[i-1,j] > 3 ? 1.0 : 0.0001
+            # --- NORTH-EAST ---
+            if i > 1&& j<n && deck[i-1,j] >0 && deck[i-1,j+1] >0 && deck[i,j+1] >0
+                neighbor_node = (i-2)*n + j +1
+                cost = maximum([sum([(deck[i-1,j] > 3), (deck[i-1,j+1] > 3),(deck[i,j+1]> 3) ]),0.0001])
                 add_edge!(g, current_node, neighbor_node, cost)
             end
             
             # --- WEST ---
             if j > 1 && deck[i,j-1] != 0
                 neighbor_node = (i-1)*n + (j-1)
-                cost = deck[i,j-1] > 3 ? 1.0 : 0.0001
+                if j==n
+                    cost = Inf
+                elseif deck[i,j+1] == 0
+                    cost = Inf
+                else
+                    cost = (deck[i,j-1] > 3 || deck[i,j+1] > 3) ? 1.0 : 0.0001
+                end
                 add_edge!(g, current_node, neighbor_node, cost)
             end
 
-            # --- SOUTH ---
-            if i < m && deck[i+1,j] != 0
-                neighbor_node = i*n + j
-                cost = deck[i+1,j] > 3 ? 1.0 : 0.0001
+            # --- SOUTH-EaSt ---
+            if i < m && j<n && deck[i+1,j] >0 && deck[i+1,j+1] >0 && deck[i,j+1] >0
+                neighbor_node = i*n + j +1
+                cost = maximum([sum([(deck[i+1,j] > 3), (deck[i+1,j+1] > 3),(deck[i,j+1] > 3) ]) ,0.0001])
                 add_edge!(g, current_node, neighbor_node, cost)
             end
 
             # --- EAST ---
             if j < n && deck[i,j+1] != 0
                 neighbor_node = (i-1)*n + (j+1)
-                cost = deck[i,j+1] > 3 ? 1.0 : 0.0001
+                cost = (deck[i,j+1] > 3) ? 1.0 : 0.0001
                 add_edge!(g, current_node, neighbor_node, cost)
             end
         end
@@ -184,6 +198,61 @@ function shortest_path_like_hansen(deck) # Shiortest path like the article by Ha
     return results, V
 end
 
-function min_shifts(deck)
-    return length(shortest_path_like_hansen(deck)[2])
+function min_shifts_work(deck)
+    shortestp = shortest_path_like_hansen(deck)
+    return sum([a[3] for a in shortestp[1]])
 end
+
+function min_shifts(deck)
+    if min_shifts_work(deck) == Inf
+        return Inf
+    
+        else
+        return length(shortest_path_like_hansen(deck)[2])
+    end
+end
+
+function min_shift_all_cargo(deck) #finding the cost shift if all cargo were to be moved. 
+
+    tot_shifts = min_shifts(deck)
+    cur_deck = copy(deck)
+    cur_deck[cur_deck .==3] .=1
+    cur_deck[cur_deck .>3] .-=1
+
+    for i in 4:maximum(deck)
+        tot_shifts += min_shifts(cur_deck)
+        cur_deck = copy(cur_deck)
+        cur_deck[cur_deck .==3] .=1
+        cur_deck[cur_deck .>3] .-=1
+    end
+
+    return tot_shifts
+end
+
+function min_shift_all_cargo_work(deck) #finding the work if cargo were to be moved 
+
+    tot_shifts = min_shifts_work(deck)
+    cur_deck = copy(deck)
+    cur_deck[cur_deck .==3] .=1
+    cur_deck[cur_deck .>3] .-=1
+
+    for i in 4:maximum(deck)
+        tot_shifts += min_shifts_work(cur_deck)
+        cur_deck = copy(cur_deck)
+        cur_deck[cur_deck .==3] .=1
+        cur_deck[cur_deck .>3] .-=1
+    end
+
+
+    return tot_shifts
+end
+
+A = [1 1 1 1 1 1 1 1 1 1;
+     1 1 1 1 0 1 1 1 1 1;
+     1 1 3 3 0 1 1 1 1 2;
+     1 1 1 1 0 1 1 1 1 2;
+     1 1 1 1 1 1 1 1 1 1;
+     1 1 1 1 1 1 1 1 1 1;]
+
+
+
