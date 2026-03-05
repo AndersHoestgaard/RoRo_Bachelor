@@ -73,6 +73,7 @@ end
 function destroy_random(deck, cargo_on;xi=0.2)
     deck = copy(deck)
     h,w = size(deck)
+    cargo_on = copy(cargo_on)
 
     n_cargo = 0
     for (i, row) in enumerate(eachrow(deck))
@@ -253,11 +254,15 @@ end
 
 function repair_neighbor(deck, cargo2place,cargo_on)
     deck = copy(deck)
+    cargo_on = copy(cargo_on)
+
+
     h,w = size(deck)
 
     for (i,row) in enumerate(eachrow(deck))
         for (j,slot) in enumerate(row)
-            if slot == 1
+
+            if slot == 1 && !isempty(cargo2place)
                 placed = false
 
                 for cargo in shuffle!(copy(cargo2place))
@@ -278,9 +283,64 @@ function repair_neighbor(deck, cargo2place,cargo_on)
                     filter!(x->x !== c2p,cargo2place)
                 end
             end
-        end
-        
+        end 
     end
+        
+    return deck,cargo_on
+end
+
+function repair_neighbor_rand(deck, cargo2place,cargo_on)
+    deck = copy(deck)
+    cargo_on = copy(cargo_on)
+
+
+    h,w = size(deck)
+
+    locs = []
+    for (i,row) in enumerate(eachrow(deck))
+        for (j,slot) in enumerate(row)
+            if slot == 1
+                push!(locs, [i,j])
+            end
+        end
+    end
+
+    shuffle!(locs)
+    for loc in locs
+        (i,j) = loc[1], loc[2]
+        slot = deck[i,j]
+
+        if !isempty(cargo2place)
+            placed = false
+
+            for cargo in shuffle!(copy(cargo2place))
+                if !placed
+                    if cargo.port in get_neighbors(deck,i,j)
+                        cargo_on[i,j] = cargo
+                        deck[i,j] = cargo.port
+                        filter!(x->x !== cargo,cargo2place)
+                        placed = true
+
+                    end
+                end
+            end
+
+        end
+    end
+
+    if !isempty(cargo2place)
+        for (i,row) in enumerate(eachrow(deck))
+            for (j,slot) in enumerate(row)
+                if slot == 1 &&!isempty(cargo2place)
+                    c = popfirst!(cargo2place)
+                    cargo_on[i,j] = c
+                    deck[i,j] = c.port
+                    filter!(x->x !== c,cargo2place)
+                end
+            end    
+        end
+    end
+
     return deck,cargo_on
 end
 
@@ -298,7 +358,6 @@ function repair_random(deck, cargo2place, cargo_on)
     h,w = size(deck)
 
     locs = []
-
     for (i,row) in enumerate(eachrow(deck))
         for (j,slot) in enumerate(row)
             if slot == 1
