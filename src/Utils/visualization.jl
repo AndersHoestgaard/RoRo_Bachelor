@@ -55,8 +55,13 @@ function plot_solution_details(sol_details)
     PlotlyJS.plot(bar(x=tags, y=vals))
 end
 
-function plot_alns_sim(results)
-    Plots.plot(1:length(results),results,xlabel = "number of iterations",
-    ylabel = "obj. val. of best solution")
-
+function plot_alns_sim(results;figtitle=nothing)
+    if !isnothing(figtitle)
+        Plots.plot(1:length(results),results,xlabel = "number of iterations",
+    ylabel = "obj. val. of best solution",
+    title=figtitle,legend = false)
+    else
+        Plots.plot(1:length(results),results,xlabel = "number of iterations",
+    ylabel = "obj. val. of best solution",legend = false)
+    end
 end
