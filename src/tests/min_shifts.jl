@@ -34,6 +34,7 @@ function get_graph(deck) #Model deck as dir. weighted graph.
     m, n = size(deck)
     @assert n>m "Deck orientation is wrong"
 
+    bigM = 100
     g = SimpleWeightedDiGraph(m * n)
         
     for i in 1:m
@@ -62,9 +63,9 @@ function get_graph(deck) #Model deck as dir. weighted graph.
             if j > 1 && deck[i,j-1] != 0
                 neighbor_node = (i-1)*n + (j-1)
                 if j==n
-                    cost = Inf
+                    cost = bigM
                 elseif deck[i,j+1] == 0
-                    cost = Inf
+                    cost = bigM
                 else
                     cost = (deck[i,j-1] > 3 || deck[i,j+1] > 3) ? 1.0 : 0.0001
                 end
@@ -90,9 +91,12 @@ function get_graph(deck) #Model deck as dir. weighted graph.
     return g
 end
 
-function shortest_path(deck) # Normal shortest path. 
-
-    start_slots = get_c_loc(deck) 
+function shortest_path(deck;define_start=false) # Normal shortest path. 
+    if define_start !== false
+        start_slots = get_c_loc(deck) 
+    else
+        start_slots = define_start
+    end
     goal_slots = get_ramp_loc(deck) 
     m, n = size(deck) 
     results = [] 
@@ -255,4 +259,4 @@ A = [1 1 1 1 1 1 1 1 1 1;
      1 1 1 1 1 1 1 1 1 1;]
 
 
-
+A[A .!== nothing]

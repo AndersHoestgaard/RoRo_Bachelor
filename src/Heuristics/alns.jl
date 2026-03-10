@@ -1,6 +1,7 @@
 using Random
 include(joinpath(pwd(),"src/tests/min_shifts.jl"))
 include(joinpath(pwd(),"src/Heuristics/priorityQ.jl"))
+
 # Destroy operators
 function get_neighbors(deck,i,j) # Helper func.for some of the neighbor funcs. 
     neighs = []
@@ -23,6 +24,7 @@ end
 
 function destroy_neighbor(deck, cargo_on;xi=0.2)
     deck = copy(deck)
+    cargo_on = copy(cargo_on)
     h,w = size(deck)
     
     
@@ -65,9 +67,61 @@ function destroy_neighbor(deck, cargo_on;xi=0.2)
     return deck, L, cargo_on
 end
 
-function destroy_area(deck;xi=0.2)
-    ## Wait until we get the actual outline
-    return ""
+function destroy_area(deck, cargo_on; xi=0.1)
+    deck = copy(deck)
+    cargo_on = copy(cargo_on)
+
+    h, w = size(deck)
+
+    n_cargo = count(!isnothing, cargo_on)
+    cargo_positions = findall(!isnothing, cargo_on)
+    target = ceil(Int, n_cargo * xi)
+    
+
+
+    cargo2place = Any[]
+    start_loc = rand(cargo_positions)
+    start_i, start_j = start_loc[1], start_loc[2]
+    area_height = 0
+    area_width = 0
+
+    while length(cargo2place) < target && area_height ≤ h && area_width ≤ w
+
+        # Expand crater area
+        for i in start_i:(start_i + area_height)
+            for j in start_j:(start_j + area_width)
+
+                if i < 1 || i > h || j < 1 || j > w
+                    continue
+                end
+
+                if deck[i, j] > 2 && !isnothing(cargo_on[i, j])
+                    push!(cargo2place, cargo_on[i, j])
+                    deck[i, j] = 1
+                    cargo_on[i, j] = nothing
+                end
+
+                if length(cargo2place) >= target
+                    break
+                end
+            end
+                
+            if length(cargo2place) >= target
+                break
+            end
+            
+        end
+
+        # Randomly expand crater
+        if rand() > 0.5
+            area_height += 1
+        else
+            area_width += 1
+        end
+        
+    end
+
+    return deck, cargo2place, cargo_on
 end
 
 function destroy_random(deck, cargo_on;xi=0.2)
@@ -102,6 +156,8 @@ function destroy_port(deck, cargo_on;xi=0.2)
     port2rem = rand(unique(A)[unique(A).>2])
 
     deck = copy(deck)
+    cargo_on = copy(cargo_on)
+
     h,w = size(deck)
 
     n_cargo = 0
@@ -128,6 +184,8 @@ function destroy_port(deck, cargo_on;xi=0.2)
 end
 
 function destroy_shifting_cost(deck, cargo_on;xi=0.2)
+    deck = copy(deck)
+    cargo_on = copy(cargo_on)
     _,V = shortest_path_like_hansen(deck)
     h,w = size(deck)
     
@@ -237,7 +295,7 @@ function repair_greedy(deck, cargo2place, cargo_on)
             end
             for (i,slot) in enumerate(col)
                 if placed
-                continue
+                    continue
                 end
                 if slot == 1
                     deck[i,j] = cport
@@ -345,7 +403,43 @@ function repair_neighbor_rand(deck, cargo2place,cargo_on)
 end
 
 function repair_placement(deck, cargo2place,cargo_on)
-    return ""
+    deck = copy(deck)
+    g_deck = copy(deck)
+    g_deck[g_deck .> 2] .= 1
+    m,n = size(deck)
+    free_cart = findall(x-> x==1, g_deck)
+    free = [(c[1],c[2]) for c in free_cart]
+    
+    g = get_graph(g_deck)
+    goal_slots = get_ramp_loc(g_deck)
+    goal_pos = [(loc[1]-1)*n + loc[2] for loc in goal_slots]
+
+    furthest_locs = []
+    for loc in free
+        pos  = (loc[1]-1)*n + loc[2]
+        dsp = dijkstra_shortest_paths(g, pos) 
+
+        dis = minimum([dsp.dists[i] for i in goal_pos])
+        push!(furthest_locs,[loc,dis])
+    end
+    sort!(furthest_locs, by = x -> x[2],rev=true)
+    sort!(cargo2place, by = x->x.port)
+    
+    for loc in furthest_locs
+        if isempty(cargo2place)
+            return deck, cargo_on
+        end
+        i,j = loc[1][1], loc[1][2]
+
+        if deck[i,j] == 1 && isnothing(cargo_on[i,j] )
+            c = popfirst!(cargo2place)
+            deck[i,j] = c.port
+            cargo_on[i,j] = c
+        end
+
+    end
+    
+    return deck, cargo_on
 
 end
 
