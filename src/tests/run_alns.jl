@@ -62,7 +62,7 @@ function simulate_alns(deck, cargo; init = pri_rules2, destroyer = destroy_rando
     return best_deck, ob_vals
 end
 
-#from chatgpt:
+#from chatgpt, modified by Albert:
 function alns_hansen(deck, cargo;
         destroy_ops = [destroy_neighbor, destroy_area, destroy_port, destroy_random, destroy_shifting_cost],
         repair_ops = [repair_greedy, repair_neighbor_rand,repair_placement, repair_random],
@@ -70,16 +70,23 @@ function alns_hansen(deck, cargo;
         iterations = 10000,
         time_lim = 10000,
         segment = 100,
-        rho = 0.1)
+        rho = 0.1,
+        sig1 = 33,
+        sig2 = 9,
+        sig3 = 3,
+        ret_weights = false)
 
     t1 = time()
-    sig1, sig2, sig3 = 33, 9, 3
+
 
     nd = length(destroy_ops)
     nr = length(repair_ops)
 
     w_d = ones(nd)
     w_r = ones(nr)
+
+    his_w_d = []
+    his_w_r = []
 
     score_d = zeros(nd)
     score_r = zeros(nr)
@@ -101,7 +108,11 @@ function alns_hansen(deck, cargo;
         timespent = time() -t1
         if timespent > time_lim
             print("ran $it iterations and $timespent seconds")
-            return best_deck, history
+            if ret_weights
+            return best_deck, history, his_w_d, his_w_r, destroy_ops, repair_ops
+            else
+                return best_deck, history
+            end
         end
         d = sample(1:length(destroy_ops), Weights(w_d))
         r = sample(1:length(repair_ops),  Weights(w_r))
@@ -175,6 +186,9 @@ function alns_hansen(deck, cargo;
                 end
             end
 
+            push!(his_w_d, w_d)
+            push!(his_w_r, w_r)
+
             score_d .= 0
             score_r .= 0
             use_d .= 0
@@ -184,7 +198,14 @@ function alns_hansen(deck, cargo;
     timespent = time() -t1 
     println("ran $its iterations and $timespent seconds")
 
-    return best_deck, history
+    if ret_weights
+        return best_deck, history, his_w_d, his_w_r, destroy_ops, repair_ops
+    else
+        return best_deck, history
+    end
+    
+    
+    
 end
 
 function alns_hansen_fast(deck, cargo;
@@ -194,9 +215,12 @@ function alns_hansen_fast(deck, cargo;
         iterations = 10000,
         time_lim = 100000, 
         segment = 100,
-        rho = 0.1)
+        rho = 0.1,
+        sig1 = 33,
+        sig2 = 9,
+        sig3 = 3)
 
-    sig1, sig2, sig3 = 33, 9, 3
+
     t1 = time()
     nd = length(destroy_ops)
     nr = length(repair_ops)

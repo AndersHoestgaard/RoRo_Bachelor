@@ -187,3 +187,15 @@ function plot_graph(deck, g::SimpleWeightedDiGraph)
 
     fig
 end
+
+function plot_alns_weights(alns_results)
+    d,_,wd,wr,dn,rn = alns_results
+
+    
+    mean_r_w = mean(hcat(wr))
+    mean_d_w = mean(hcat(wd))
+    
+    p1 = Plots.bar(string.(dn), mean_d_w, title="Destroy weights", xlabel="Destroy operators", ylabel="Mean weight")
+    p2 = Plots.bar(string.(rn), mean_r_w, title="Repair weights", xlabel="Repair operators", ylabel="Mean weight")
+    Plots.plot(p1, p2, layout=(2,1))
+end
