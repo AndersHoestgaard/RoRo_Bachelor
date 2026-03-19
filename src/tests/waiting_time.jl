@@ -1,12 +1,17 @@
-function wait_time(arr_times, handling_time=4/60, num_operators=3)
-    if typeof(arr_times) == Vector{Cargo}
-        arr_timestrav = copy(arr_times)
-        arr_times = []
+function wait_time(i_arr_times, handling_time=4/60, num_operators=5)
+    i_arr_times=reshape(i_arr_times,1,:)
+    if typeof(i_arr_times) == Vector{Cargo}
+        arr_timestrav = copy(i_arr_times)
+        i_arr_times = []
         
         for time in arr_timestrav
-            push!(arr_times, time.arr)
+            push!(i_arr_times, time.arr)
         end
     end
+
+    arr_times = cumsum(i_arr_times,dims = 1)
+    
+
 
     busy_until = zeros(Float64, num_operators)
 

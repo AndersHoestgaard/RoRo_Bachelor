@@ -153,7 +153,7 @@ function destroy_random(deck, cargo_on;xi=0.2)
 end
 
 function destroy_port(deck, cargo_on;xi=0.2)
-    port2rem = rand(unique(A)[unique(A).>2])
+    port2rem = rand(unique(deck)[unique(deck).>2])
 
     deck = copy(deck)
     cargo_on = copy(cargo_on)

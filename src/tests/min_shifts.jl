@@ -30,7 +30,7 @@ function get_ramp_loc(deck) #Get location of ramp slots
 end
 
 function get_graph(deck) #Model deck as dir. weighted graph. 
-    
+    #Always assumes ramp is to the rigth
     m, n = size(deck)
     @assert n>m "Deck orientation is wrong"
 
@@ -62,9 +62,8 @@ function get_graph(deck) #Model deck as dir. weighted graph.
             # --- WEST ---
             if j > 1 && deck[i,j-1] != 0
                 neighbor_node = (i-1)*n + (j-1)
-                if j==n
-                    cost = bigM
-                elseif deck[i,j+1] == 0
+                
+                if deck[i,j+1] == 0
                     cost = bigM
                 else
                     cost = (deck[i,j-1] > 3 || deck[i,j+1] > 3) ? 1.0 : 0.0001
@@ -251,12 +250,3 @@ function min_shift_all_cargo_work(deck) #finding the work if cargo were to be mo
     return tot_shifts
 end
 
-A = [1 1 1 1 1 1 1 1 1 1;
-     1 1 1 1 0 1 1 1 1 1;
-     1 1 3 3 0 1 1 1 1 2;
-     1 1 1 1 0 1 1 1 1 2;
-     1 1 1 1 1 1 1 1 1 1;
-     1 1 1 1 1 1 1 1 1 1;]
-
-
-A[A .!== nothing]
