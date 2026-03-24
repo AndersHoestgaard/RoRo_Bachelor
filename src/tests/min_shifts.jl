@@ -1,15 +1,18 @@
 using Graphs, SimpleWeightedGraphs
 # Assuming cargo can move sideways freely and but only move up and down if space is available
 
-function get_c_loc(deck,port=1) #Get location of cargo for port
-    portid = port+2
+function get_c_loc(deck; port=1, reverse_cols=true, reverse_rows=false) #Get cargo loc. Reverse_cols and Reverserows implemented by chatgpt
 
+    portid = port + 2
     id_cargo = []
-    for (i,row) in enumerate(eachrow(deck)) 
-        for (j,slot) in enumerate(row)
-            if slot == portid
-                push!(id_cargo,[i,j])
-    
+
+    cols = reverse_cols ? reverse(1:size(deck,2)) : 1:size(deck,2)
+    rows = reverse_rows ? reverse(1:size(deck,1)) : 1:size(deck,1)
+
+    for j in cols
+        for i in rows
+            if deck[i,j] == portid
+                push!(id_cargo, (i,j))   # use tuple instead!
             end
         end
     end
@@ -142,9 +145,9 @@ function shortest_path_like_hansen(deck) # Shiortest path like the article by Ha
     
     results = []
     V = Set{Tuple{Int,Int}}()   
+    g = get_graph(deck)
     
     for (idx, start_pos) in enumerate(start_slots)
-        g = get_graph(deck)
         start_node = (start_pos[1]-1)*n + start_pos[2]
         
         dsp = dijkstra_shortest_paths(g, start_node)
