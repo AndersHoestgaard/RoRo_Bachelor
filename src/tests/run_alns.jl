@@ -1,4 +1,6 @@
 include(joinpath(pwd(), "src/Heuristics/alns.jl"))
+include(joinpath(pwd(), "src/Heuristics/alns_arrival_time.jl"))
+
 include(joinpath(pwd(), "src/Heuristics/alns_fast.jl"))
 
 include("obj_func.jl")
@@ -332,4 +334,169 @@ function alns_hansen_fast(deck, cargo;
     println("ran $its iterations and $timespent seconds")
 
     return best_deck, history
+end
+
+function alns_hansen_basket(deck, cargo;
+        destroy_ops = [destroy_neighbor_basket, destroy_area_basket, destroy_port_basket, destroy_random_basket, destroy_shifting_cost_basket],
+        repair_ops = [repair_greedy_basket, repair_neighbor_rand_basket,repair_placement_basket, repair_random_basket,repair_in_basket, repair_out_basket],
+        init = load_random,
+        iterations = 10000,
+        time_lim = 10000,
+        segment = 100,
+        rho = 0.1,
+        sig1 = 33,
+        sig2 = 9,
+        sig3 = 3,
+        ret_weights = false,
+        mean_rev_cargo = 1500, 
+        pcostshift = 100, 
+        timecost = 3000/60,
+        handling_time = 4/60,
+        num_operators = 5)
+
+    t1 = time()
+
+    
+    nd = length(destroy_ops)
+    nr = length(repair_ops)
+
+    w_d = ones(nd)
+    w_r = ones(nr)
+
+    his_w_d = []
+    his_w_r = []
+
+    score_d = zeros(nd)
+    score_r = zeros(nr)
+
+    use_d = zeros(nd)
+    use_r = zeros(nr)
+
+    best_deck, best_cargo = init(deck, cargo)
+    best_val = evaluate_sol(best_deck, 
+                            best_cargo,
+                            mean_rev_cargo=mean_rev_cargo,
+                            pcostshift=pcostshift,
+                            timecost = timecost,
+                            handling_time = handling_time,
+                            num_operators = num_operators
+                            )
+    
+    init_size = count(x-> x>2 ,best_deck)
+    current_deck = deepcopy(best_deck)
+    current_cargo = deepcopy(best_cargo)
+    current_basket = []
+
+    current_val = best_val
+
+    history = []
+    its = 0
+    for it in 1:iterations
+
+        its = it
+        timespent = time() -t1
+        if timespent > time_lim
+            print("ran $it iterations and $timespent seconds")
+            if ret_weights
+                return best_deck, history, his_w_d, his_w_r, destroy_ops, repair_ops
+            else
+                return best_deck, history
+            end
+        end
+        d = sample(1:length(destroy_ops), Weights(w_d))
+        r = sample(1:length(repair_ops),  Weights(w_r))
+
+        destroy = destroy_ops[d]
+        repair = repair_ops[r]
+
+        
+        
+
+        use_d[d] += 1
+        use_r[r] += 1
+        destroyed_deck, cargo2place, destroyed_cargo, dbasket =
+            destroy(current_deck, current_cargo, current_basket)
+
+        new_deck, new_cargo, new_basket=
+            repair(destroyed_deck, cargo2place, destroyed_cargo,dbasket)
+
+        new_val = evaluate_sol(new_deck, new_cargo)
+
+        accepted = false
+        if new_val > best_val
+            best_deck = deepcopy(new_deck)
+            best_cargo = deepcopy(new_cargo)
+            best_val = new_val
+            best_basket = new_basket
+
+            current_deck = new_deck
+            current_cargo = new_cargo
+            current_val = new_val
+            current_basket = new_basket
+
+            score_d[d] += sig1
+            score_r[r] += sig1
+
+            accepted = true
+
+        elseif new_val > current_val
+
+            current_deck = new_deck
+            current_cargo = new_cargo
+            current_val = new_val
+            current_basket = new_basket
+
+            score_d[d] += sig2
+            score_r[r] += sig2
+
+            accepted = true
+
+        elseif rand() < 0.1
+
+            current_deck = new_deck
+            current_cargo = new_cargo
+            current_val = new_val
+            current_basket = new_basket
+
+            score_d[d] += sig3
+            score_r[r] += sig3
+
+            accepted = true
+        end
+
+        push!(history, best_val)
+
+        # weight updates
+        if it % segment == 0
+            println("iteraion $it")
+            for i in 1:nd
+                if use_d[i] > 0
+                    w_d[i] = (1-rho)*w_d[i] + rho*(score_d[i]/use_d[i])
+                end
+            end
+
+            for i in 1:nr
+                if use_r[i] > 0
+                    w_r[i] = (1-rho)*w_r[i] + rho*(score_r[i]/use_r[i])
+                end
+            end
+
+            push!(his_w_d, w_d)
+            push!(his_w_r, w_r)
+
+            score_d .= 0
+            score_r .= 0
+            use_d .= 0
+            use_r .= 0
+        end
+    end
+    timespent = time() -t1 
+    println("ran $its iterations and $timespent seconds")
+
+    if ret_weights
+        return best_deck, history, his_w_d, his_w_r, destroy_ops, repair_ops
+    else
+        return best_deck, history
+    end
+    
 end
