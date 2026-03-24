@@ -445,7 +445,6 @@ end
 
 function repair_random(deck, cargo2place, cargo_on)
     if isempty(cargo2place)
-        @warn "Repair operator received complete deck"
         return deck, cargo_on
     end
     deck = copy(deck)
