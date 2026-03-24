@@ -1,7 +1,7 @@
 using CairoMakie,PlotlyJS,Plots,StatsPlots,Distributions
 using Graphs, SimpleWeightedGraphs
 
-function plot_deck(deck)
+function plot_deck(deck;horizontal = true)
     num_of_ports = maximum(deck)-2
     category_names = Dict(
     0 => "unavailable",
@@ -38,7 +38,11 @@ function plot_deck(deck)
 
     
     ax = Axis(fig[1,1], aspect = DataAspect(),yreversed=true)
-    hm = CairoMakie.heatmap!(ax, transpose(deck), colormap = colors, colorrange = (0, num_of_ports+2))
+    if horizontal
+        hm = CairoMakie.heatmap!(ax, deck, colormap = colors, colorrange = (0, num_of_ports+2))
+    else
+        hm = CairoMakie.heatmap!(ax, transpose(deck), colormap = colors, colorrange = (0, num_of_ports+2))
+    end
 
     legend_elements = [PolyElement(color = colors[i], strokecolor = :black) for i in 1:length(labels)]
     Legend(fig[1,2], legend_elements, names, "Category")
@@ -195,7 +199,7 @@ function plot_alns_weights(alns_results)
     mean_r_w = mean(hcat(wr))
     mean_d_w = mean(hcat(wd))
     
-    p1 = Plots.bar(string.(dn), mean_d_w, title="Destroy weights", xlabel="Destroy operators", ylabel="Mean weight")
-    p2 = Plots.bar(string.(rn), mean_r_w, title="Repair weights", xlabel="Repair operators", ylabel="Mean weight")
+    p1 = Plots.bar(string.(dn),mean_d_w, title="Destroy weights", xlabel="Destroy operators", ylabel="Mean weight", xrotation = 10)
+    p2 = Plots.bar(string.(rn), mean_r_w, title="Repair weights", xlabel="Repair operators", ylabel="Mean weight", xrotation = 10)
     Plots.plot(p1, p2, layout=(2,1))
 end
