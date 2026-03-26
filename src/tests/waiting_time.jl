@@ -161,12 +161,10 @@ function loading_order(deck, cargo_on)
     return V
 end
 
-function wait_time(cargo_on; handling_time=4/60, num_operators=5) # implemented by chatgpt
+function wait_time_simple(cargo_on; handling_time=4/60, num_operators=5) # implemented by chatgpt
     all_cargo = cargo_on[cargo_on .!= nothing]
 
-    i_arrival_times = [c.arr for c in all_cargo]
-
-    arr_times = cumsum(i_arr_times,dims = 1)
+    arr_times = [c.arr for c in all_cargo]
     busy_until = zeros(Float64, num_operators)
 
     
@@ -180,7 +178,7 @@ function wait_time(cargo_on; handling_time=4/60, num_operators=5) # implemented 
     return maximum(busy_until)
 end
 
-function wait_time_with_blocking(deck, cargo_on;
+function wait_time(deck, cargo_on;
     handling_time = 4/60,
     num_operators = 5,
     percent_arrived = 0.2)
@@ -188,13 +186,13 @@ function wait_time_with_blocking(deck, cargo_on;
     V = loading_order(deck, cargo_on)
 
     all_cargo = [c for c in cargo_on if c !== nothing]
-    sort!(all_cargo, by = c -> c.arr)
+
 
     # --- Inter-arrival ---
-    i_arrival_times = [c.arr for c in all_cargo]
+    arr_times = [c.arr for c in all_cargo]
     k = Int(floor(length(all_cargo) * percent_arrived))
-    i_arrival_times[1:k] .= 0.0
-    arr_times = cumsum(i_arrival_times)
+    arr_times[1:k] .= 0.0
+
 
     arrival_dict = Dict(c => t for (c,t) in zip(all_cargo, arr_times))
 
@@ -214,19 +212,17 @@ function wait_time_with_blocking(deck, cargo_on;
 
             arr_time = arrival_dict[c]
 
-            # --- Arrival constraint ---
-            if arr_time > current_time
+            if arr_time > current_time # check if cargo have arrived, if it hasn't, proceed
                 continue
             end
 
-            # --- Relaxed blocking ---
-            blocked = any(dep ∉ completed for dep in V[c] if dep in queue)
 
+            blocked = any(dep ∉ completed for dep in V[c] if dep in queue) # check if the cargo is good to stow, or if it would block
             if blocked
                 continue
             end
 
-            # --- Assign operator ---
+        
             op = argmin(busy_until)
             start_time = max(arr_time, busy_until[op], current_time)
             finish_time = start_time + handling_time
@@ -241,10 +237,9 @@ function wait_time_with_blocking(deck, cargo_on;
             break
         end
 
-        # --- If stuck: advance time or break cycle ---
-        if !progress
-            next_arrival = minimum(arrival_dict[c] for c in queue)
-            next_free = minimum(busy_until)
+        if !progress # when there is no more cargo to stow at current time
+            next_arrival = minimum(arrival_dict[c] for c in queue) # see when the next cargo is arriving
+            next_free = minimum(busy_until) # see when next tugmaster is free
 
             if next_arrival > current_time
                 current_time = next_arrival
