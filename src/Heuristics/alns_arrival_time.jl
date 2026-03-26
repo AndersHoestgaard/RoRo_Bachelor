@@ -52,8 +52,6 @@ function destroy_neighbor_basket(deck, cargo_on, basket;xi=0.2)
         end
     end
 
-    
-
     for (count, loc) in enumerate(shuffle!(Lloc))
         if count > xi*n_cargo
 
@@ -279,7 +277,7 @@ function repair_greedy_basket(deck, cargo2place, cargo_on, basket)
     end
 
     for (k,v) in cargoDict
-        push!(scoreList, [k, 1/v.port + v.arr])
+        push!(scoreList, [k, 1/v.arr])
     end
 
     scoreList = sort(scoreList, by = x -> x[2])
@@ -485,7 +483,8 @@ function repair_in_basket(deck, cargo2place, cargo_on, basket)
         return deck, cargo_on, basket
     end
 
-    in_basket = popfirst!(cargo2place)
+    in_basket = sort(cargo2place, by = x-> x.arr)[end]
+    filter!(x->x!=in_basket, cargo2place)
     push!(basket, in_basket)
 
     inner_repair = rand([repair_random_basket, repair_greedy_basket, repair_neighbor_basket, repair_placement_basket])
