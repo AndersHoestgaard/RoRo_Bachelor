@@ -17,9 +17,9 @@ end
 
 function generate_arrival_times_exp(n;lambd=0.2, rng=nothing)
     if rng !== nothing
-        return [rand(rng,Exponential(lambd)) for _ in 1:n]
+        return cumsum!([rand(rng,Exponential(lambd)) for _ in 1:n])
     else
-        return [rand(Exponential(lambd)) for _ in 1:n]
+        return cumsum!([rand(Exponential(lambd)) for _ in 1:n])
     end
 end
 
