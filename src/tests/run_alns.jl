@@ -344,6 +344,7 @@ function alns_hansen_basket(deck, cargo;
         time_lim = 10000,
         segment = 100,
         rho = 0.1,
+        accept_worse = 0.1,
         sig1 = 33,
         sig2 = 9,
         sig3 = 3,
@@ -393,14 +394,14 @@ function alns_hansen_basket(deck, cargo;
     its = 0
     for it in 1:iterations
 
-        its = it
+
         timespent = time() -t1
         if timespent > time_lim
             print("ran $it iterations and $timespent seconds")
             if ret_weights
                 return best_deck, history, his_w_d, his_w_r, destroy_ops, repair_ops
             else
-                return best_deck, history
+                return best_deck, best_cargo, history
             end
         end
         d = sample(1:length(destroy_ops), Weights(w_d))
@@ -451,7 +452,7 @@ function alns_hansen_basket(deck, cargo;
 
             accepted = true
 
-        elseif rand() < 0.1
+        elseif rand() < accept_worse
 
             current_deck = new_deck
             current_cargo = new_cargo
@@ -491,12 +492,12 @@ function alns_hansen_basket(deck, cargo;
         end
     end
     timespent = time() -t1 
-    println("ran $its iterations and $timespent seconds")
+    println("ran $it iterations and $timespent seconds")
 
     if ret_weights
         return best_deck, history, his_w_d, his_w_r, destroy_ops, repair_ops
     else
-        return best_deck, history
+        return best_deck, cargo_on, history
     end
     
 end
