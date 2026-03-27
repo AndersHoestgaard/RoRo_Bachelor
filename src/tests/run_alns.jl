@@ -394,7 +394,7 @@ function alns_hansen_basket(deck, cargo;
     its = 0
     for it in 1:iterations
 
-
+        its = it
         timespent = time() -t1
         if timespent > time_lim
             print("ran $it iterations and $timespent seconds")
@@ -492,12 +492,12 @@ function alns_hansen_basket(deck, cargo;
         end
     end
     timespent = time() -t1 
-    println("ran $it iterations and $timespent seconds")
+    println("ran $its iterations and $timespent seconds")
 
     if ret_weights
         return best_deck, history, his_w_d, his_w_r, destroy_ops, repair_ops
     else
-        return best_deck, cargo_on, history
+        return best_deck, best_cargo, history
     end
     
 end
