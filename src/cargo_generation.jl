@@ -15,11 +15,12 @@ function generate_cargo_port(n; num_ports=5, rng = nothing)
     end
 end 
 
-function generate_arrival_times_exp(n;lambd=0.2, rng=nothing)
+function generate_arrival_times_exp(n;lambd=1/60, rng=nothing)
     if rng !== nothing
-        return cumsum!([rand(rng,Exponential(lambd)) for _ in 1:n])
+        i_times = [rand(rng,Exponential(lambd)) for _ in 1:n]
+        return cumsum(i_times)
     else
-        return cumsum!([rand(Exponential(lambd)) for _ in 1:n])
+        return cumsum([rand(Exponential(lambd)) for _ in 1:n])
     end
 end
 
@@ -38,7 +39,7 @@ struct Cargo
     rev::Float32
 end
 
-function genereate_cargo_structs(n;num_ports = 5, lambd = 0.2, sig=0.1,seed = nothing)
+function genereate_cargo_structs(n;num_ports = 5, lambd = 1/60, sig=0.1,seed = nothing)
     
     if seed !== nothing
         types = generate_cargo_type(n,rng=MersenneTwister(seed))

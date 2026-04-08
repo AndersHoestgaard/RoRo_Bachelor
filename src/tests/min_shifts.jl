@@ -186,7 +186,7 @@ function shortest_path_like_hansen(deck) # Shiortest path like the article by Ha
                 u = best_path[i]
                 v = best_path[i+1]
                 
-                w = weights(g)[u, v]
+                w = Graphs.weights(g)[u, v]
                 
                 if isapprox(w, 1.0; atol=1e-9)
                     push!(V, (u,v))
@@ -206,20 +206,25 @@ end
 
 function min_shifts_work(deck)
     shortestp = shortest_path_like_hansen(deck)
-    return sum([a[3] for a in shortestp[1]])
+
+    if !any(x->x==3, deck)
+        return 0
+    else
+        return sum([a[3] for a in shortestp[1]])
+    end
 end
 
 function min_shifts(deck)
     if min_shifts_work(deck) == Inf
         return Inf
     
-        else
+    else
         return length(shortest_path_like_hansen(deck)[2])
     end
 end
 
 function min_shift_all_cargo(deck) #finding the cost shift if all cargo were to be moved. 
-
+    deck = deepcopy(deck)
     tot_shifts = min_shifts(deck)
     cur_deck = copy(deck)
     cur_deck[cur_deck .==3] .=1

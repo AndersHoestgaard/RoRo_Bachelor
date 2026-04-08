@@ -1,3 +1,4 @@
+using Graphs, SimpleWeightedGraphs
 function get_all_c_loc(deck) #Get cargo loc. Reverse_cols and Reverserows implemented by chatgpt
     id_cargo = []
     
@@ -142,7 +143,7 @@ function loading_order(deck, cargo_on)
             u = path[i]
             v = path[i+1]
 
-            w = weights(g)[u,v]
+            w = Graphs.weights(g)[u,v]
 
             if isapprox(w, 1.0; atol=1e-9)
                 # blocking cargo at v

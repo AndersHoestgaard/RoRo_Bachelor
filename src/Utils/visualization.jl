@@ -1,4 +1,4 @@
-using CairoMakie,PlotlyJS,Plots,StatsPlots,Distributions
+using CairoMakie,PlotlyJS,Plots,StatsPlots,Distributions, Statistics
 using Graphs, SimpleWeightedGraphs
 
 function plot_deck(deck;horizontal = true)
@@ -202,4 +202,43 @@ function plot_alns_weights(alns_results)
     p1 = Plots.bar(string.(dn),mean_d_w, title="Destroy weights", xlabel="Destroy operators", ylabel="Mean weight", xrotation = 10)
     p2 = Plots.bar(string.(rn), mean_r_w, title="Repair weights", xlabel="Repair operators", ylabel="Mean weight", xrotation = 10)
     Plots.plot(p1, p2, layout=(2,1))
+end
+
+function plot_convergence(ob_vals_collection; step=100, ci_level=0.95) # from chatgpt
+
+    n_steps = length(ob_vals_collection)
+    iterations = collect(step:step:step*n_steps)
+
+    means = Float64[]
+    lower = Float64[]
+    upper = Float64[]
+
+    z = 1.96  # ~95% CI (normal approx)
+
+    for vals in ob_vals_collection
+        μ = mean(vals)
+        σ = std(vals)
+        n = length(vals)
+
+        ci = z * σ / sqrt(n)
+
+        push!(means, μ)
+        push!(lower, μ - ci)
+        push!(upper, μ + ci)
+    end
+
+    fig = Figure(size=(800,600))
+    ax = Axis(fig[1,1],
+        xlabel = "Iterations",
+        ylabel = "Objective Value",
+        title = "ALNS Convergence (Mean ± 95% CI)"
+    )
+
+    # Confidence band (plot first so line appears on top)
+    band!(ax, iterations, lower, upper, alpha=0.3, color=:blue)
+
+    # Mean line
+    lines!(ax, iterations, means, linewidth=2, color=:red)
+
+    fig
 end

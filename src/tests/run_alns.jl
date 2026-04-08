@@ -1,5 +1,6 @@
 include(joinpath(pwd(), "src/Heuristics/alns.jl"))
 include(joinpath(pwd(), "src/Heuristics/alns_arrival_time.jl"))
+include(joinpath(pwd(), "src/Heuristics/grasp.jl"))
 
 include(joinpath(pwd(), "src/Heuristics/alns_fast.jl"))
 
@@ -339,7 +340,7 @@ end
 function alns_hansen_basket(deck, cargo;
         destroy_ops = [destroy_neighbor_basket, destroy_area_basket, destroy_port_basket, destroy_random_basket, destroy_shifting_cost_basket],
         repair_ops = [repair_greedy_basket, repair_neighbor_rand_basket,repair_placement_basket, repair_random_basket,repair_in_basket, repair_out_basket],
-        init = load_random,
+        init = grasp,
         iterations = 10000,
         time_lim = 10000,
         segment = 100,
@@ -350,8 +351,8 @@ function alns_hansen_basket(deck, cargo;
         sig3 = 3,
         ret_weights = false,
         mean_rev_cargo = 1500, 
-        pcostshift = 100, 
-        timecost = 3000/60,
+        pcostshift = 250, 
+        timecost = 264/60,
         handling_time = 4/60,
         num_operators = 5)
 
@@ -409,6 +410,8 @@ function alns_hansen_basket(deck, cargo;
 
         destroy = destroy_ops[d]
         repair = repair_ops[r]
+        println(destroy)
+        println(repair)
 
         
         

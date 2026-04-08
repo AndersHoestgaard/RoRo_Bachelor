@@ -12,7 +12,8 @@ function evaluate_sol(deck, cargo_on;
     num_operators = 5,
     percent_arrived=0.2,
     sol_details = false)
-
+    deck = deepcopy(deck)
+    cargo_on = deepcopy(cargo_on)
     c_on = [c for row in eachrow(cargo_on) for c in row if c !== nothing]
     totrev = sum([cargo.rev*mean_rev_cargo for cargo in c_on])
     wcost = wait_time(deck,cargo_on,handling_time=handling_time,num_operators=num_operators,percent_arrived=percent_arrived)*timecost
