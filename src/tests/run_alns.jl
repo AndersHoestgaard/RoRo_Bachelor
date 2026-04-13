@@ -350,7 +350,6 @@ function alns_hansen_basket(deck, cargo;
         sig2 = 9,
         sig3 = 3,
         ret_weights = false,
-        mean_rev_cargo = 1500, 
         pcostshift = 250, 
         timecost = 264/60,
         handling_time = 4/60,
@@ -377,7 +376,6 @@ function alns_hansen_basket(deck, cargo;
     best_deck, best_cargo = init(deck, cargo)
     best_val = evaluate_sol(best_deck, 
                             best_cargo,
-                            mean_rev_cargo=mean_rev_cargo,
                             pcostshift=pcostshift,
                             timecost = timecost,
                             handling_time = handling_time,

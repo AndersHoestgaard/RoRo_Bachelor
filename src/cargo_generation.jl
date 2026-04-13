@@ -24,11 +24,11 @@ function generate_arrival_times_exp(n;lambd=1/60, rng=nothing)
     end
 end
 
-function generate_rev(n;mu=1,sig=0.1,rng = nothing)
+function generate_rev(n;pricelist = [1200,1400,1500,1600,1700],rng = nothing)
     if rng !== nothing
-        return [rand(rng,Normal(mu,sig)) for _ in 1:n]
+        return [rand(rng,pricelist) for _ in 1:n]
     else
-        return [rand(Normal(mu,sig)) for _ in 1:n]
+        return [rand(pricelist) for _ in 1:n]
     end 
 end
 
