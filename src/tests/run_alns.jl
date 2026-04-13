@@ -410,8 +410,7 @@ function alns_hansen_basket(deck, cargo;
 
         destroy = destroy_ops[d]
         repair = repair_ops[r]
-        println(destroy)
-        println(repair)
+
 
         
         

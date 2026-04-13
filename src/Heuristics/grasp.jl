@@ -94,5 +94,10 @@ function grasp(deck, cargo;
         end
     end
 
+    if best_cargo_on === nothing
+        best_deck, best_cargo_on = load_random(deck, cargo)
+        best_val = evaluate_sol(best_deck, best_cargo_on)
+    end
+
     return best_deck, best_cargo_on
 end

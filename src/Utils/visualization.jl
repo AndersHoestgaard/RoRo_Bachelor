@@ -204,7 +204,7 @@ function plot_alns_weights(alns_results)
     Plots.plot(p1, p2, layout=(2,1))
 end
 
-function plot_convergence(ob_vals_collection; step=100, ci_level=0.95) # from chatgpt
+function plot_convergence(ob_vals_collection; step=100, ci_level=0.95, plottitle = "") # from chatgpt
 
     n_steps = length(ob_vals_collection)
     iterations = collect(step:step:step*n_steps)
@@ -231,7 +231,7 @@ function plot_convergence(ob_vals_collection; step=100, ci_level=0.95) # from ch
     ax = Axis(fig[1,1],
         xlabel = "Iterations",
         ylabel = "Objective Value",
-        title = "ALNS Convergence (Mean ± 95% CI)"
+        title = plottitle
     )
 
     # Confidence band (plot first so line appears on top)
