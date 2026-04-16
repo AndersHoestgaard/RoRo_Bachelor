@@ -39,18 +39,18 @@ struct Cargo
     rev::Float32
 end
 
-function genereate_cargo_structs(n;num_ports = 5, lambd = 1/60, sig=0.1,seed = nothing)
+function genereate_cargo_structs(n;num_ports = 5, lambd = 1/60,seed = nothing)
     
     if seed !== nothing
         types = generate_cargo_type(n,rng=MersenneTwister(seed))
         ports = generate_cargo_port(n,num_ports=num_ports,rng=MersenneTwister(seed))
         arr_times = generate_arrival_times_exp(n,lambd = lambd,rng=MersenneTwister(seed))
-        revs = generate_rev(n,sig=sig,rng=MersenneTwister(seed))
+        revs = generate_rev(n,rng=MersenneTwister(seed))
     else
         types = generate_cargo_type(n)
         ports = generate_cargo_port(n, num_ports=num_ports)
         arr_times = generate_arrival_times_exp(n,lambd=lambd)
-        revs = generate_rev(n,sig=sig)
+        revs = generate_rev(n)
     end
     cargolist = [Cargo(types[i],ports[i],arr_times[i],revs[i]) for i in 1:n]
 

@@ -349,11 +349,13 @@ function alns_hansen_basket(deck, cargo;
         sig1 = 33,
         sig2 = 9,
         sig3 = 3,
+        xi = 0.1,
         ret_weights = false,
         pcostshift = 250, 
         timecost = 264/60,
         handling_time = 4/60,
-        num_operators = 5)
+        num_operators = 5,
+        print_status=true)
 
     t1 = time()
 
@@ -396,7 +398,7 @@ function alns_hansen_basket(deck, cargo;
         its = it
         timespent = time() -t1
         if timespent > time_lim
-            print("ran $it iterations and $timespent seconds")
+            println("ran $it iterations and $timespent seconds") 
             if ret_weights
                 return best_deck, history, his_w_d, his_w_r, destroy_ops, repair_ops
             else
@@ -416,7 +418,7 @@ function alns_hansen_basket(deck, cargo;
         use_d[d] += 1
         use_r[r] += 1
         destroyed_deck, cargo2place, destroyed_cargo, dbasket =
-            destroy(current_deck, current_cargo, current_basket)
+            destroy(current_deck, current_cargo, current_basket, xi = xi)
 
         new_deck, new_cargo, new_basket=
             repair(destroyed_deck, cargo2place, destroyed_cargo,dbasket)
@@ -469,7 +471,7 @@ function alns_hansen_basket(deck, cargo;
 
         # weight updates
         if it % segment == 0
-            println("iteraion $it")
+            if print_status println("iteraion $it") end
             for i in 1:nd
                 if use_d[i] > 0
                     w_d[i] = (1-rho)*w_d[i] + rho*(score_d[i]/use_d[i])
