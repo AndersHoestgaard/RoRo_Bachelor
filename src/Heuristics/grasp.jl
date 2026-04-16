@@ -41,10 +41,15 @@ function grasp(deck, cargo;
 
     m, n = size(deck)
 
-    best_deck = nothing
+    best_deck     = nothing
     best_cargo_on = nothing
-    best_val = -Inf
+    best_val      = -Inf
 
+    # --- Search Guiding Parameters (SGPs) ---
+    # D: 2 traversal orders (ramp-first, row-wise)
+    # I: 3 insertion orders  (early port, short arrival, random)
+    # L: 5 RCL sizes         (1, 20%, 40%, 60%, 80% of remaining cargo)
+    nD, nI, nL = 2, 3, 5
 
     wD = ones(7)
     wL = ones(5)
@@ -64,10 +69,9 @@ function grasp(deck, cargo;
     for it in 1:max_iter
 
         # --- copy inputs ---
-        deck_sol = copy(deck)
+        deck_sol   = copy(deck)
         cargo_pool = copy(cargo)
-
-        cargo_on = Array{Union{Nothing, eltype(cargo)}, 2}(nothing, m, n)
+        cargo_on   = Array{Union{Nothing, eltype(cargo)}, 2}(nothing, m, n)
 
         # --- select strategies ---
         d = sample(1:7, Weights(wD))
@@ -75,18 +79,28 @@ function grasp(deck, cargo;
         l_index = sample(1:5, Weights(wL))
         
 
-        # --- S: available slots ---
+        uD[d]    += 1
+        uI[i_st] += 1
+        uL[l_ix] += 1
+
+        # --- S: available slots, sorted by traversal order d ---
         S = [(i,j) for i in 1:m, j in 1:n if deck_sol[i,j] == 1]
         S = get_traversal_order(S, d, m, n)
         
 
-        # --- main construction ---
+        # --- main construction loop ---
         while !isempty(S) && !isempty(cargo_pool)
 
-            (i,j) = popfirst!(S)
+            (ci, cj) = popfirst!(S)
+            n_remaining = length(cargo_pool)
 
-            # --- build candidate list ---
-            candidates = cargo_pool
+            # --- RCL size (adaptive to how much cargo is left) ---
+            rcl_sizes = [1,
+                         max(1, round(Int, 0.20 * n_remaining)),
+                         max(1, round(Int, 0.40 * n_remaining)),
+                         max(1, round(Int, 0.60 * n_remaining)),
+                         max(1, round(Int, 0.80 * n_remaining))]
+            l_size = rcl_sizes[l_ix]
 
             if isempty(candidates)
                 break
@@ -119,15 +133,31 @@ function grasp(deck, cargo;
             deleteat!(cargo_pool, findfirst(==(c_sel), cargo_pool))
         end
 
-        # --- check feasibility ---
+        # --- evaluate; update scores if all cargo placed ---
         if isempty(cargo_pool)
             val = evaluate_sol(deck_sol, cargo_on)
 
             if val > best_val
-                best_val = val
-                best_deck = deck_sol
+                best_val      = val
+                best_deck     = deck_sol
                 best_cargo_on = cargo_on
             end
+
+            # --- update SGP scores (reward proportional to objective) ---
+            sD[d]    += val
+            sI[i_st] += val
+            sL[l_ix] += val
+        end
+
+        # --- update weights after each iteration ---
+        for k in 1:nD
+            wD[k] = sD[k] / max(1, uD[k])
+        end
+        for k in 1:nI
+            wI[k] = sI[k] / max(1, uI[k])
+        end
+        for k in 1:nL
+            wL[k] = sL[k] / max(1, uL[k])
         end
 
         count_D[d] += 1
@@ -146,9 +176,9 @@ function grasp(deck, cargo;
 
     end
 
+    # --- fallback if no feasible solution found ---
     if best_cargo_on === nothing
         best_deck, best_cargo_on = load_random(deck, cargo)
-        best_val = evaluate_sol(best_deck, best_cargo_on)
     end
 
     return best_deck, best_cargo_on

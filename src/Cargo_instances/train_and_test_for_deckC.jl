@@ -1,3 +1,5 @@
+include(joinpath(pwd(), "src/cargo_generation.jl"))
+
 using Random
 include(joinpath(pwd(), "src/cargo_generation.jl"))
 Random.seed!(4242)
