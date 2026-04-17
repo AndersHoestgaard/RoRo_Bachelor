@@ -15,12 +15,15 @@ function generate_cargo_port(n; num_ports=5, rng = nothing)
     end
 end 
 
-function generate_arrival_times_exp(n;lambd=1/60, rng=nothing)
+function generate_arrival_times_exp(n;p_arrived=0.2,lambd=1/60, rng=nothing)
     if rng !== nothing
         i_times = [rand(rng,Exponential(lambd)) for _ in 1:n]
+        i_times[1:Int(round(p_arrived*n))] = 0.02
         return cumsum(i_times)
     else
-        return cumsum([rand(Exponential(lambd)) for _ in 1:n])
+        i_times = [rand(Exponential(lambd)) for _ in 1:n]
+        i_times[1:Int(round(p_arrived*n))] = 0.02
+        return cumsum(i_times)
     end
 end
 
