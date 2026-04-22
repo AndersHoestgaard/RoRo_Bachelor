@@ -18,16 +18,16 @@ end
 function generate_arrival_times_exp(n;p_arrived=0.2,lambd=1/60, rng=nothing)
     if rng !== nothing
         i_times = [rand(rng,Exponential(lambd)) for _ in 1:n]
-        i_times[1:Int(round(p_arrived*n))] .= 0.0
+        i_times[1:Int(round(p_arrived*n))] = 0.02
         return cumsum(i_times)
     else
         i_times = [rand(Exponential(lambd)) for _ in 1:n]
-        i_times[1:Int(round(p_arrived*n))] .= 0.0
+        i_times[1:Int(round(p_arrived*n))] = 0.02
         return cumsum(i_times)
     end
 end
 
-function generate_rev(n;pricelist = [1200,1400,1500,1600,1700],rng = nothing)
+function generate_rev(n;pricelist = [6000, 6750, 7500, 8250, 9000],rng = nothing)
     if rng !== nothing
         return [rand(rng,pricelist) for _ in 1:n]
     else
