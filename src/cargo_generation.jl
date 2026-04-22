@@ -18,11 +18,11 @@ end
 function generate_arrival_times_exp(n;p_arrived=0.2,lambd=1/60, rng=nothing)
     if rng !== nothing
         i_times = [rand(rng,Exponential(lambd)) for _ in 1:n]
-        i_times[1:Int(round(p_arrived*n))] = 0.02
+        i_times[1:Int(round(p_arrived*n))] .= 0.0
         return cumsum(i_times)
     else
         i_times = [rand(Exponential(lambd)) for _ in 1:n]
-        i_times[1:Int(round(p_arrived*n))] = 0.02
+        i_times[1:Int(round(p_arrived*n))] .= 0.0
         return cumsum(i_times)
     end
 end

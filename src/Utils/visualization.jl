@@ -67,6 +67,18 @@ function plot_alns_sim(results;figtitle=nothing)
     end
 end
 
+function plot_param_tune(res::Dict; title=nothing, xlabel="parameter", ylabel="value", plot_line=true, marker=:circle)
+    # Sort keys to ensure x is ordered
+    ks = sort(collect(keys(res)))
+    ys = [res[k] for k in ks]
+
+    if plot_line
+        Plots.plot(ks, ys, marker=marker, xlabel = xlabel, ylabel = ylabel, title = title, legend = false)
+    else
+        Plots.scatter(ks, ys, xlabel = xlabel, ylabel = ylabel, title = title, legend = false)
+    end
+end
+
 function plot_exp_dist(lambdas)
     p = nothing
     for (i,lamb) in enumerate(lambdas)
@@ -241,4 +253,41 @@ function plot_convergence(ob_vals_collection; step=100, ci_level=0.95, plottitle
     lines!(ax, iterations, means, linewidth=2, color=:red)
 
     fig
+end
+
+function plot_alns_weights_his(results)
+    best_deck, history, his_w_d, his_w_r, destroy_names, repair_names = results
+    if length(his_w_d) == 0 && length(his_w_r) == 0
+        error("No weight history provided")
+    end
+
+    plots = []
+
+    if length(his_w_d) > 0
+        mat_d = transpose(hcat(his_w_d...))
+        nd = size(mat_d, 2)
+        segs = 1:size(mat_d, 1)
+        p1 = Plots.plot(segs, mat_d[:, 1], label = isempty(destroy_names) ? "d1" : destroy_names[1],lw=3)
+        for j in 2:nd
+            Plots.plot!(p1, segs, mat_d[:, j], label = isempty(destroy_names) ? "d$(j)" : destroy_names[j],lw=3)
+        end
+        push!(plots, p1)
+    end
+
+    if length(his_w_r) > 0
+        mat_r = transpose(hcat(his_w_r...))
+        nr = size(mat_r, 2)
+        segs = 1:size(mat_r, 1)
+        p2 = Plots.plot(segs, mat_r[:, 1], label = isempty(repair_names) ? "r1" : repair_names[1],lw=3)
+        for j in 2:nr
+            Plots.plot!(p2, segs, mat_r[:, j], label = isempty(repair_names) ? "r$(j)" : repair_names[j],lw=3)
+        end
+        push!(plots, p2)
+    end
+
+    if length(plots) == 2
+        display(Plots.plot(plots[1], plots[2], layout = (2, 1), size = (900, 700)))
+    else
+        display(plots[1])
+    end
 end
