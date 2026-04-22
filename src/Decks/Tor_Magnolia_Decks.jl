@@ -23,4 +23,3 @@ ramp = [[2,13],[3,13],[4,13],[5,13],[6,13],[7,13]]
 magnoliaMainstruct = Deck(w,l,unava, ramp)
 magnoliaMainmat = create_deck(magnoliaMainstruct)
 
-2 + 4+6 + 2*8 + 6*4 + 6

@@ -80,7 +80,6 @@ function grasp(deck, cargo;
         # --- S: available slots, sorted by traversal order d ---
         S = [(i,j) for i in 1:m, j in 1:n if deck_sol[i,j] == 1]
         S = get_traversal_order(S, d, m, n)
-        
 
         # --- main construction loop ---
         while !isempty(S) && !isempty(cargo_pool)
@@ -128,20 +127,27 @@ function grasp(deck, cargo;
                 best_deck     = deck_sol
                 best_cargo_on = cargo_on
             end
+
+        elseif val == -Inf
+            wD .= 1
+            wL .= 1
+            wI .= 1
+        else
+            count_D[d] += 1
+            count_L[l_index] += 1
+            count_I[ins] += 1
+
+            score_D[d] += val
+            score_L[l_index] += val
+            score_I[ins] += val
+
+            wD = score_D ./ max.(count_D, 1)
+            wL = score_L ./ max.(count_L, 1)
+            wI = score_I ./ max.(count_I, 1)
         end
 
         # --- update weights after each iteration ---
-        count_D[d] += 1
-        count_L[l_index] += 1
-        count_I[ins] += 1
-
-        score_D[d] += val
-        score_L[l_index] += val
-        score_I[ins] += val
-
-        wD = score_D ./ max.(count_D, 1)
-        wL = score_L ./ max.(count_L, 1)
-        wI = score_I ./ max.(count_I, 1)
+        
 
 
     end

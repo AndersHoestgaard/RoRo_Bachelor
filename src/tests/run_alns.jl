@@ -9,6 +9,7 @@ include("obj_func.jl")
 using StatsBase: sample, Weights
 
 
+
 function simulate_alns_simple(deck, cargo; init = pri_rules2, destroyer = destroy_random, repairer=repair_random, n_sim=1000, xi=0.2 )
     ob_vals = []
     best_deck, best_cargo = init(deck,cargo)
@@ -189,8 +190,8 @@ function alns_hansen(deck, cargo;
                 end
             end
 
-            push!(his_w_d, w_d)
-            push!(his_w_r, w_r)
+            push!(his_w_d, copy(w_d))
+            push!(his_w_r, copy(w_r))
 
             score_d .= 0
             score_r .= 0
@@ -343,8 +344,8 @@ function alns_hansen_basket(deck, cargo;
         init = grasp,
         iterations = 10000,
         time_lim = 10000,
-        segment = 100,
-        rho = 0.1,
+        segment = 20,
+        rho = 0.9,
         accept_worse = 0.1,
         sig1 = 33,
         sig2 = 9,
@@ -484,8 +485,10 @@ function alns_hansen_basket(deck, cargo;
                 end
             end
 
-            push!(his_w_d, w_d)
-            push!(his_w_r, w_r)
+            if ret_weights
+                push!(his_w_d, copy(w_d))
+                push!(his_w_r, copy(w_r))
+            end
 
             score_d .= 0
             score_r .= 0

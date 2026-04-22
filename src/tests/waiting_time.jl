@@ -181,8 +181,7 @@ end
 
 function wait_time(deck, cargo_on;
     handling_time = 4/60,
-    num_operators = 5,
-    percent_arrived = 0.2)
+    num_operators = 5)
 
     V = loading_order(deck, cargo_on)
 
@@ -191,8 +190,7 @@ function wait_time(deck, cargo_on;
 
     # --- Inter-arrival ---
     arr_times = [c.arr for c in all_cargo]
-    k = Int(floor(length(all_cargo) * percent_arrived))
-    arr_times[1:k] .= 0.0
+
 
 
     arrival_dict = Dict(c => t for (c,t) in zip(all_cargo, arr_times))
