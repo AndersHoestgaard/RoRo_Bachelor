@@ -4,7 +4,7 @@ include("waiting_time.jl")
 # 1500€ per cargo in revenue, 100€ per shift, 3000€/60 per minute waited. 
 
 function evaluate_sol(deck, cargo_on; 
-    pcostshift = 100, 
+    pcostshift = 250, 
     timecost = 3000/60,
     shift_evaluator="work_tot",
     handling_time = 4/60,
