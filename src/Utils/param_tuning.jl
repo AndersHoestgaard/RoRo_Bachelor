@@ -10,7 +10,7 @@ function param_tune(
     reps = 3,                 
     alns_runtime = 25,
     segment = 100,
-    rho = 0.1,
+    eta = 0.1,
     accept_worse = 0.1,
     sig1 = 33,
     sig2 = 9,
@@ -32,7 +32,7 @@ function param_tune(
                 kwargs = Dict(
                     :time_lim => alns_runtime,
                     :segment => segment,
-                    :rho => rho,
+                    :eta => eta,
                     :accept_worse => accept_worse,
                     :sig1 => sig1,
                     :sig2 => sig2,

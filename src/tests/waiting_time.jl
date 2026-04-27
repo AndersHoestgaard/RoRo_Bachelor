@@ -75,6 +75,7 @@ function get_graph_for_loading_order(deck) #Model deck as dir. weighted graph.
     return g
 end
 
+
 function loading_order(deck, cargo_on)
 
     g = get_graph(deck)
@@ -128,9 +129,7 @@ function loading_order(deck, cargo_on)
         # --- reconstruct path ---
         path = Int[]
         current = best_goal_node
-        if best_goal_node === nothing || isinf(min_dist)
-            continue   # skip this cargo
-        end
+
         while current != start_node && current != 0
             pushfirst!(path, current)
             current = dsp.parents[current]
@@ -162,7 +161,7 @@ function loading_order(deck, cargo_on)
     return V
 end
 
-function wait_time_simple(cargo_on; handling_time=4/60, num_operators=5) # implemented by chatgpt
+function wait_time_simple(cargo_on; handling_time=7, num_operators=5) # implemented by chatgpt
     all_cargo = cargo_on[cargo_on .!= nothing]
 
     arr_times = [c.arr for c in all_cargo]
@@ -180,7 +179,7 @@ function wait_time_simple(cargo_on; handling_time=4/60, num_operators=5) # imple
 end
 
 function wait_time(deck, cargo_on;
-    handling_time = 4/60,
+    handling_time = 7,
     num_operators = 5,
     percent_arrived = 0.2)
 
@@ -262,4 +261,34 @@ function wait_time(deck, cargo_on;
     end
 
     return maximum(busy_until)
+end
+
+function perfect_wait_time(deck,cargo)
+    cargo = vcat(filter(x->!isnothing(x) ,copy(cargo)))
+    sort!(cargo, by = x -> x.arr, rev=true)
+    deck = copy(deck)
+
+    deck[deck .> 2] .= 1
+
+    m,n = size(deck)
+    cargo_on =  Array{Union{Nothing, eltype(cargo)}, 2}(nothing, m, n)
+    for (j, col) in reverse(collect(enumerate(eachcol(deck))))
+        if j == size(deck)[2]
+                continue
+            end
+        for (i,slot) in enumerate(col)
+            
+            if slot == 1 && deck[i,j+1] !=0
+                if isempty(cargo)
+                    return wait_time_simple(cargo_on)
+                end
+                c = popfirst!(cargo)
+                deck[i,j] = c.port
+                cargo_on[i,j] = c
+            end
+        end
+    end
+
+    return wait_time_simple(cargo_on)
+
 end

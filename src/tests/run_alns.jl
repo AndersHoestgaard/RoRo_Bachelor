@@ -1,365 +1,46 @@
-include(joinpath(pwd(), "src/Heuristics/alns.jl"))
+
 include(joinpath(pwd(), "src/Heuristics/alns_arrival_time.jl"))
 include(joinpath(pwd(), "src/Heuristics/grasp.jl"))
-
-include(joinpath(pwd(), "src/Heuristics/alns_fast.jl"))
 
 include("obj_func.jl")
 
 using StatsBase: sample, Weights
+using Random
 
 
-function simulate_alns_simple(deck, cargo; init = pri_rules2, destroyer = destroy_random, repairer=repair_random, n_sim=1000, xi=0.2 )
-    ob_vals = []
-    best_deck, best_cargo = init(deck,cargo)
-    best_val = evaluate_sol(best_deck,best_cargo)
 
-    for i in 1:n_sim
-        destroyed_deck, cargo2place, destroyed_cargo_on = destroyer(best_deck, best_cargo,xi=xi)
-        repaired_deck, repaired_cargo_on = repairer(destroyed_deck,cargo2place,destroyed_cargo_on)
-        
-        eval = evaluate_sol(repaired_deck, repaired_cargo_on)
 
-        if eval> best_val
-            best_deck = repaired_deck
-            best_cargo = repaired_cargo_on
-            best_val = eval
-            
-        end
-        push!(ob_vals,best_val)
 
-    end
-    return best_deck, ob_vals
-end
-
-function simulate_alns(deck, cargo; init = pri_rules2, destroyer = destroy_random, repairer=repair_random, n_sim=1000, xi=0.2, acceptance_prob=0.1)
-    ob_vals = []
-    best_deck, best_cargo = init(deck, cargo)
-    best_val = evaluate_sol(best_deck, best_cargo)
-    
-    current_deck = copy(best_deck)
-    current_cargo = copy(best_cargo)
-    current_val = best_val
-
-    for i in 1:n_sim
-        destroyed_deck, cargo2place, destroyed_cargo_on = destroyer(current_deck, current_cargo, xi=xi)
-        repaired_deck, repaired_cargo_on = repairer(destroyed_deck, cargo2place, destroyed_cargo_on)
-        
-        new_val = evaluate_sol(repaired_deck, repaired_cargo_on)
-
-        if new_val > best_val
-            best_deck = repaired_deck
-            best_cargo = repaired_cargo_on
-            best_val = new_val
-            current_deck = copy(repaired_deck)
-            current_cargo = copy(repaired_cargo_on)
-            current_val = new_val
-        elseif new_val > current_val || rand() < acceptance_prob
-            current_deck = repaired_deck
-            current_cargo = repaired_cargo_on
-            current_val = new_val
-        end
-        
-        push!(ob_vals, best_val)
-    end
-    return best_deck, ob_vals
-end
-
-#from chatgpt, modified by Albert:
-function alns_hansen(deck, cargo;
-        destroy_ops = [destroy_neighbor, destroy_area, destroy_port, destroy_random, destroy_shifting_cost],
-        repair_ops = [repair_greedy, repair_neighbor_rand,repair_placement, repair_random],
-        init = load_random,
-        iterations = 10000,
-        time_lim = 10000,
-        segment = 100,
-        rho = 0.1,
-        sig1 = 33,
-        sig2 = 9,
-        sig3 = 3,
-        ret_weights = false)
-
-    t1 = time()
-
-
-    nd = length(destroy_ops)
-    nr = length(repair_ops)
-
-    w_d = ones(nd)
-    w_r = ones(nr)
-
-    his_w_d = []
-    his_w_r = []
-
-    score_d = zeros(nd)
-    score_r = zeros(nr)
-
-    use_d = zeros(nd)
-    use_r = zeros(nr)
-
-    best_deck, best_cargo = init(deck, cargo)
-    best_val = evaluate_sol(best_deck, best_cargo)
-
-    current_deck = copy(best_deck)
-    current_cargo = copy(best_cargo)
-    current_val = best_val
-
-    history = []
-    its = 0
-    for it in 1:iterations
-        its = it
-        timespent = time() -t1
-        if timespent > time_lim
-            print("ran $it iterations and $timespent seconds")
-            if ret_weights
-            return best_deck, history, his_w_d, his_w_r, destroy_ops, repair_ops
-            else
-                return best_deck, history
-            end
-        end
-        d = sample(1:length(destroy_ops), Weights(w_d))
-        r = sample(1:length(repair_ops),  Weights(w_r))
-
-        destroy = destroy_ops[d]
-        repair = repair_ops[r]
-        use_d[d] += 1
-        use_r[r] += 1
-
-        destroyed_deck, cargo2place, destroyed_cargo =
-            destroy(current_deck, current_cargo)
-
-        new_deck, new_cargo =
-            repair(destroyed_deck, cargo2place, destroyed_cargo)
-
-        new_val = evaluate_sol(new_deck, new_cargo)
-
-        accepted = false
-
-        if new_val > best_val
-            best_deck = new_deck
-            best_cargo = new_cargo
-            best_val = new_val
-
-            current_deck = new_deck
-            current_cargo = new_cargo
-            current_val = new_val
-
-            score_d[d] += sig1
-            score_r[r] += sig1
-
-            accepted = true
-
-        elseif new_val > current_val
-
-            current_deck = new_deck
-            current_cargo = new_cargo
-            current_val = new_val
-
-            score_d[d] += sig2
-            score_r[r] += sig2
-
-            accepted = true
-
-        elseif rand() < 0.1
-
-            current_deck = new_deck
-            current_cargo = new_cargo
-            current_val = new_val
-
-            score_d[d] += sig3
-            score_r[r] += sig3
-
-            accepted = true
-        end
-
-        push!(history, best_val)
-
-        # weight updates
-        if it % segment == 0
-            println("iteraion $it")
-            for i in 1:nd
-                if use_d[i] > 0
-                    w_d[i] = (1-rho)*w_d[i] + rho*(score_d[i]/use_d[i])
-                end
-            end
-
-            for i in 1:nr
-                if use_r[i] > 0
-                    w_r[i] = (1-rho)*w_r[i] + rho*(score_r[i]/use_r[i])
-                end
-            end
-
-            push!(his_w_d, w_d)
-            push!(his_w_r, w_r)
-
-            score_d .= 0
-            score_r .= 0
-            use_d .= 0
-            use_r .= 0
-        end
-    end
-    timespent = time() -t1 
-    println("ran $its iterations and $timespent seconds")
-
-    if ret_weights
-        return best_deck, history, his_w_d, his_w_r, destroy_ops, repair_ops
-    else
-        return best_deck, history
-    end
-    
-    
-    
-end
-
-function alns_hansen_fast(deck, cargo;
-        destroy_ops = [destroy_neighborf, destroy_areaf, destroy_portf, destroy_randomf, destroy_shifting_costf],
-        repair_ops = [repair_greedyf, repair_neighbor_randf,repair_placementf, repair_randomf],
-        init = load_random,
-        iterations = 10000,
-        time_lim = 100000, 
-        segment = 100,
-        rho = 0.1,
-        sig1 = 33,
-        sig2 = 9,
-        sig3 = 3)
-
-
-    t1 = time()
-    nd = length(destroy_ops)
-    nr = length(repair_ops)
-
-    w_d = ones(nd)
-    w_r = ones(nr)
-
-    score_d = zeros(nd)
-    score_r = zeros(nr)
-
-    use_d = zeros(nd)
-    use_r = zeros(nr)
-
-    best_deck, best_cargo = init(deck, cargo)
-    best_val = evaluate_sol(best_deck, best_cargo)
-
-    current_deck = copy(best_deck)
-    current_cargo = copy(best_cargo)
-    current_val = best_val
-
-    history = []
-    its = 0
-    for it in 1:iterations
-        its = it
-        timespent = time() -t1 
-        if timespent > time_lim
-            print("ran $it iterations and $timespent seconds")
-            return best_deck, history
-        end
-        d = sample(1:length(destroy_ops), Weights(w_d))
-        r = sample(1:length(repair_ops),  Weights(w_r))
-
-        destroy = destroy_ops[d]
-        repair = repair_ops[r]
-        use_d[d] += 1
-        use_r[r] += 1
-
-        destroyed_deck, cargo2place, destroyed_cargo =
-            destroy(current_deck, current_cargo)
-
-        new_deck, new_cargo =
-            repair(destroyed_deck, cargo2place, destroyed_cargo)
-
-        new_val = evaluate_sol(new_deck, new_cargo)
-
-        accepted = false
-
-        if new_val > best_val
-            best_deck = new_deck
-            best_cargo = new_cargo
-            best_val = new_val
-
-            current_deck = new_deck
-            current_cargo = new_cargo
-            current_val = new_val
-
-            score_d[d] += sig1
-            score_r[r] += sig1
-
-            accepted = true
-
-        elseif new_val > current_val
-
-            current_deck = new_deck
-            current_cargo = new_cargo
-            current_val = new_val
-
-            score_d[d] += sig2
-            score_r[r] += sig2
-
-            accepted = true
-
-        elseif rand() < 0.1
-
-            current_deck = new_deck
-            current_cargo = new_cargo
-            current_val = new_val
-
-            score_d[d] += sig3
-            score_r[r] += sig3
-
-            accepted = true
-        end
-
-        push!(history, best_val)
-
-        # weight updates
-        if it % segment == 0
-            println("iteraion $it")
-            for i in 1:nd
-                if use_d[i] > 0
-                    w_d[i] = (1-rho)*w_d[i] + rho*(score_d[i]/use_d[i])
-                end
-            end
-
-            for i in 1:nr
-                if use_r[i] > 0
-                    w_r[i] = (1-rho)*w_r[i] + rho*(score_r[i]/use_r[i])
-                end
-            end
-
-            score_d .= 0
-            score_r .= 0
-            use_d .= 0
-            use_r .= 0
-        end
-    end
-    timespent = time() -t1 
-    println("ran $its iterations and $timespent seconds")
-
-    return best_deck, history
-end
 
 function alns_hansen_basket(deck, cargo;
-        destroy_ops = [destroy_neighbor_basket, destroy_area_basket, destroy_port_basket, destroy_random_basket, destroy_shifting_cost_basket],
-        repair_ops = [repair_greedy_basket, repair_neighbor_rand_basket,repair_placement_basket, repair_random_basket,repair_in_basket, repair_out_basket],
+        destroy_ops = [destroy_neighbor_basket_v2, destroy_area_basket, destroy_port_basket, destroy_random_basket, destroy_shifting_cost_basket, destroy_bordering],
+        repair_ops = [repair_greedy_basket, repair_neighbor_basket_v2,repair_placement_basket, repair_random_basket, repair_in_basket, repair_out_basket],
         init = grasp,
-        iterations = 10000,
+        iterations = 20000,
         time_lim = 10000,
         segment = 100,
-        rho = 0.1,
-        accept_worse = 0.1,
+        eta = 0.1,
+        accept_worse = 0.2,
         sig1 = 33,
         sig2 = 9,
         sig3 = 3,
-        xi = 0.1,
+        xi = 0.2,
+        xi_min = 0.05,
+        xi_max = 0.6,
+        xi_step_up = 0.02,
+        xi_step_down = 0.01,
+        stagnation_increase_after = 50,
         ret_weights = false,
         pcostshift = 250, 
-        timecost = 264/60,
-        handling_time = 4/60,
+        timecost = 500/60,
+        handling_time = 7,
         num_operators = 5,
-        print_status=true)
+        print_status=true,
+        early_stop_thres = false,
+        grasp_its = 2000,
+        priority = [0.4, 0.3, 0.3])
 
     t1 = time()
-
-    
     nd = length(destroy_ops)
     nr = length(repair_ops)
 
@@ -375,32 +56,69 @@ function alns_hansen_basket(deck, cargo;
     use_d = zeros(nd)
     use_r = zeros(nr)
 
-    best_deck, best_cargo = init(deck, cargo)
+    if init == grasp
+        best_deck, best_cargo = init(deck, cargo;
+            pcostshift = pcostshift, 
+            timecost = timecost,
+            handling_time = handling_time,
+            num_operators = num_operators,
+            max_iter=grasp_its) 
+    else
+        best_deck, best_cargo = init(deck, cargo)
+    end
+    normdeckc = load_random(deck,cargo)
+
+    norms = evaluate_sol(normdeckc[1],normdeckc[2],
+                            pcostshift=pcostshift,
+                            timecost = timecost,
+                            handling_time = handling_time,
+                            num_operators = num_operators,
+                            sol_details=true,
+                            priority=priority
+                            )
+
     best_val = evaluate_sol(best_deck, 
                             best_cargo,
                             pcostshift=pcostshift,
                             timecost = timecost,
                             handling_time = handling_time,
-                            num_operators = num_operators
+                            num_operators = num_operators,
+                            norms=norms,
+                            priority=priority
                             )
     
-    init_size = count(x-> x>2 ,best_deck)
+    
+
     current_deck = deepcopy(best_deck)
     current_cargo = deepcopy(best_cargo)
     current_basket = []
 
     current_val = best_val
 
+    # adaptive xi state
+    xi_current = xi
+    iter_since_improve = 0
+
     history = []
     its = 0
-    for it in 1:iterations
+    it_found = 0
+    t_found = 0
+    target_delta = best_val * 0.05
+    temperature = -target_delta / log(0.5)
 
+    # Cooling rate (alpha)
+    # For 20,000 iterations, 0.999 is a standard starting point
+    cooling_rate = 0.999
+    for it in 1:iterations
+        
         its = it
         timespent = time() -t1
         if timespent > time_lim
             println("ran $it iterations and $timespent seconds") 
             if ret_weights
                 return best_deck, history, his_w_d, his_w_r, destroy_ops, repair_ops
+            elseif early_stop_thres != false
+                return best_deck, best_cargo, history, t_found
             else
                 return best_deck, best_cargo, history
             end
@@ -418,15 +136,24 @@ function alns_hansen_basket(deck, cargo;
         use_d[d] += 1
         use_r[r] += 1
         destroyed_deck, cargo2place, destroyed_cargo, dbasket =
-            destroy(current_deck, current_cargo, current_basket, xi = xi)
+            destroy(current_deck, current_cargo, current_basket, xi = xi_current)
 
         new_deck, new_cargo, new_basket=
             repair(destroyed_deck, cargo2place, destroyed_cargo,dbasket)
 
-        new_val = evaluate_sol(new_deck, new_cargo)
+        new_val = evaluate_sol(new_deck, new_cargo,pcostshift=pcostshift,
+                            timecost = timecost,
+                            handling_time = handling_time,
+                            num_operators = num_operators,
+                            norms=norms,
+                            priority=priority
+                            )
+
 
         accepted = false
         if new_val > best_val
+            t_found = time()-t1
+            it_found = its
             best_deck = deepcopy(new_deck)
             best_cargo = deepcopy(new_cargo)
             best_val = new_val
@@ -442,6 +169,10 @@ function alns_hansen_basket(deck, cargo;
 
             accepted = true
 
+            # decrease removal size when a new best is found
+            xi_current = max(xi_min, xi_current - xi_step_down)
+            iter_since_improve = 0
+
         elseif new_val > current_val
 
             current_deck = new_deck
@@ -454,7 +185,11 @@ function alns_hansen_basket(deck, cargo;
 
             accepted = true
 
-        elseif rand() < accept_worse
+            # slight decrease on accepted improvement
+            xi_current = max(xi_min, xi_current - xi_step_down/2)
+            iter_since_improve = 0
+
+        elseif exp((new_val-current_val)/temperature) > rand()
 
             current_deck = new_deck
             current_cargo = new_cargo
@@ -465,32 +200,49 @@ function alns_hansen_basket(deck, cargo;
             score_r[r] += sig3
 
             accepted = true
+                iter_since_improve += 1
+            else
+                iter_since_improve += 1
         end
 
         push!(history, best_val)
+        temperature *= cooling_rate
 
+        if early_stop_thres != false && (its-it_found) > early_stop_thres 
+            println("ran $its iterations and $timespent seconds")
+
+            return best_deck, best_cargo, history, t_found
+        end
         # weight updates
         if it % segment == 0
             if print_status println("iteraion $it") end
             for i in 1:nd
                 if use_d[i] > 0
-                    w_d[i] = (1-rho)*w_d[i] + rho*(score_d[i]/use_d[i])
+                    w_d[i] = (1-eta)*w_d[i] + eta*(score_d[i]/use_d[i])
                 end
             end
 
             for i in 1:nr
                 if use_r[i] > 0
-                    w_r[i] = (1-rho)*w_r[i] + rho*(score_r[i]/use_r[i])
+                    w_r[i] = (1-eta)*w_r[i] + eta*(score_r[i]/use_r[i])
                 end
             end
 
-            push!(his_w_d, w_d)
-            push!(his_w_r, w_r)
+            if ret_weights
+                push!(his_w_d, copy(w_d))
+                push!(his_w_r, copy(w_r))
+            end
 
             score_d .= 0
             score_r .= 0
             use_d .= 0
             use_r .= 0
+        end
+
+        # if stuck for a while, increase removal fraction to diversify
+        if iter_since_improve >= stagnation_increase_after
+            xi_current = min(xi_max, xi_current + xi_step_up)
+            iter_since_improve = 0
         end
     end
     timespent = time() -t1 
@@ -498,6 +250,8 @@ function alns_hansen_basket(deck, cargo;
 
     if ret_weights
         return best_deck, history, his_w_d, his_w_r, destroy_ops, repair_ops
+    elseif early_stop_thres != false
+                return best_deck, best_cargo, history, t_found
     else
         return best_deck, best_cargo, history
     end

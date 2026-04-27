@@ -65,6 +65,52 @@ function destroy_neighbor_basket(deck, cargo_on, basket;xi=0.2)
     return deck, L, cargo_on, basket
 end
 
+function destroy_neighbor_basket_v2(deck, cargo_on, basket;xi=0.2)
+    deck = copy(deck)
+    cargo_on = copy(cargo_on)
+    h,w = size(deck)
+    
+    L = []
+    Lloc = []
+    init_cargo_length = length(findall(x->x>2,deck))
+    
+
+    for i in 1:4
+        cargo_locs = findall(x->x>2,deck)
+        
+        for loc in cargo_locs
+            slot = deck[loc[1],loc[2]]
+            
+            if count(x->x==slot, get_neighbors(deck,loc[1],loc[2])) == i-1
+                push!(L,cargo_on[loc[1],loc[2]])
+                cargo_on[loc[1],loc[2]] = nothing
+                deck[loc[1],loc[2]] = 1
+                if length(L) > init_cargo_length*xi
+                    return deck, L, cargo_on, basket
+                end
+            end
+        end
+    end
+
+    while length(L) <= init_cargo_length*xi
+        carg = findall(x->x>2,deck)
+        if isempty(carg)
+                return deck, L, cargo_on, basket
+        else
+            s = rand(carg)
+            i,j = s[1],s[2]
+            push!(L,cargo_on[i,j])
+            cargo_on[i,j] = nothing
+            deck[i,j] = 1
+        end
+    end
+
+
+    
+   
+    return deck, L, cargo_on, basket
+end
+
 function destroy_area_basket(deck, cargo_on, basket; xi=0.1)
     deck = copy(deck)
     cargo_on = copy(cargo_on)
@@ -75,9 +121,10 @@ function destroy_area_basket(deck, cargo_on, basket; xi=0.1)
     cargo_positions = findall(!isnothing, cargo_on)
     target = ceil(Int, n_cargo * xi)
     
-
-
     cargo2place = Any[]
+    if isempty(cargo_positions)
+        return deck, cargo2place, cargo_on, basket
+    end
     start_loc = rand(cargo_positions)
     start_i, start_j = start_loc[1], start_loc[2]
     area_height = 0
@@ -151,7 +198,15 @@ function destroy_random_basket(deck, cargo_on, basket;xi=0.2)
 end
 
 function destroy_port_basket(deck, cargo_on, basket;xi=0.2)
-    port2rem = rand(unique(deck)[unique(deck).>2])
+    if isempty(unique(deck)[unique(deck).>2])
+        port2rem = 3
+    else
+        if rand(1:2) == 1
+            port2rem = rand(unique(deck)[unique(deck).>2])
+        else
+            port2rem = rand(unique(deck)[unique(deck).>2],2)
+        end
+    end
 
     deck = copy(deck)
     cargo_on = copy(cargo_on)
@@ -161,7 +216,7 @@ function destroy_port_basket(deck, cargo_on, basket;xi=0.2)
     n_cargo = 0
     for (i, row) in enumerate(eachrow(deck))
         for (j, slot) in enumerate(row)
-            if slot == port2rem
+            if in(slot,port2rem)
                 n_cargo +=1
             end
         end
@@ -172,7 +227,7 @@ function destroy_port_basket(deck, cargo_on, basket;xi=0.2)
         i = rand(1:h)
         j = rand(1:w)
 
-        if deck[i,j] == port2rem
+        if in(deck[i,j], port2rem)
             push!(L,cargo_on[i,j])
             deck[i,j] = 1
             cargo_on[i,j] = nothing
@@ -211,7 +266,7 @@ function destroy_shifting_cost_basket(deck, cargo_on, basket;xi=0.2)
         selected_blockers = shuffle!(cargo_positions)[1:n_selected_blockers]
     else
         blockers = [[div(num[2], w)+1,num[2]%w +1] for num in V]
-        n_selected_blockers = maximum([(xi/2)*length(blockers),1])
+        n_selected_blockers = max(1, round(Int, (xi/2)*length(blockers)))
         selected_blockers = [popfirst!(shuffle!(blockers)) for n in 1:n_selected_blockers]
     end
     
@@ -262,9 +317,86 @@ function destroy_shifting_cost_basket(deck, cargo_on, basket;xi=0.2)
     return deck, L, cargo_on, basket
 end
 
+function destroy_bordering(deck, cargo_on, basket;xi=0.2)
+    deck = copy(deck)
+    cargo_on = copy(cargo_on)
+    h,w = size(deck)
+    
+    L = []
+    init_cargo_length = length(findall(x->x>2,deck))
+    
+
+
+    cargo_locs = findall(x->x>2,deck)
+    
+    for loc in cargo_locs
+        slot = deck[loc[1],loc[2]]
+        if loc[2] == w
+            continue
+        end
+        if deck[loc[1],loc[2]+1] > slot
+            push!(L,cargo_on[loc[1],loc[2]])
+            cargo_on[loc[1],loc[2]] = nothing
+            deck[loc[1],loc[2]] = 1
+            if length(L) > init_cargo_length*xi
+                return deck, L, cargo_on, basket
+            end
+        end
+    end
+
+
+    while length(L) <= init_cargo_length*xi
+        carg = findall(x->x>2,deck)
+        if isempty(carg)
+                return deck, L, cargo_on, basket
+        else
+ 
+            cords = rand(carg)
+
+            i,j = cords[1], cords[2]
+            push!(L,cargo_on[i,j])
+            cargo_on[i,j] = nothing
+            deck[i,j] = 1
+        end
+    end
+
+
+    
+   
+    return deck, L, cargo_on, basket
+end
+
+function destroy_latest(deck, cargo_on, basket;xi=0.2)
+    deck = copy(deck)
+    cargo_on = copy(cargo_on)
+    h,w = size(deck)
+    
+    L = []
+    init_cargo_length = length(findall(x->x>2,deck))
+    
+    
+    all_cargo = filter(x->!isnothing(x),cargo_on)
+
+    sort!(all_cargo, by= x->x.arr, rev=true)
+    
+    for carg in all_cargo
+        loc = findall(x->x==carg,all_cargo)
+        slot = deck[loc[1],loc[2]]
+
+        push!(L,cargo_on[loc[1],loc[2]])
+        cargo_on[loc[1],loc[2]] = nothing
+        deck[loc[1],loc[2]] = 1
+        if length(L) > init_cargo_length*xi
+            return deck, L, cargo_on, basket
+        end
+    end
+ 
+   
+    return deck, L, cargo_on, basket
+end
+
 # Repairers 
 function repair_greedy_basket(deck, cargo2place, cargo_on, basket)  
-    #This is basically the same as pri_rules
 
     cargoDict = Dict()
     scoreList = []
@@ -276,18 +408,26 @@ function repair_greedy_basket(deck, cargo2place, cargo_on, basket)
         cargoDict["c$i"] = c
     end
 
-    for (k,v) in cargoDict
-        push!(scoreList, [k, 1/v.arr])
+    if rand(1:2)==1
+        for (k,v) in cargoDict
+            push!(scoreList, [k, v.arr])
+        end
+        scoreList = sort(scoreList, by = x -> x[2])
+    else
+        for (k,v) in cargoDict
+            push!(scoreList, [k, v.port])
+        end
+        scoreList = sort(scoreList, by = x -> x[2],rev=true)
     end
-
-    scoreList = sort(scoreList, by = x -> x[2])
+    
+    
     
     for score in scoreList
         (id,_) = score
         cport = cargoDict[id].port
         carg = cargoDict[id]
         placed = false
-        for (j,col) in enumerate(eachcol(deck))
+        for (j, col) in reverse(collect(enumerate(eachcol(deck))))
             if placed
                 continue
             end
@@ -342,6 +482,36 @@ function repair_neighbor_basket(deck, cargo2place,cargo_on, basket)
         end 
     end
         
+    return deck,cargo_on, basket
+end
+
+function repair_neighbor_basket_v2(deck, cargo2place,cargo_on, basket)
+    deck = copy(deck)
+    cargo_on = copy(cargo_on)
+
+
+    h,w = size(deck)
+
+
+    for n in 4:-1:1
+        freespots = findall(x->x==1,deck)
+        shuffle!(freespots)
+        for spot in freespots
+            i,j = spot[1],spot[2]
+            neighs = get_neighbors(deck,i,j)
+            for carg in copy(cargo2place)
+                if count(x->x==carg.port,neighs) == n
+                    deck[i,j] = carg.port
+                    cargo_on[i,j] = carg
+                    filter!(x-> x !== carg, cargo2place)
+                    break
+                end
+            end
+        end
+    end
+            
+    
+
     return deck,cargo_on, basket
 end
 
@@ -487,7 +657,7 @@ function repair_in_basket(deck, cargo2place, cargo_on, basket)
     filter!(x->x!=in_basket, cargo2place)
     push!(basket, in_basket)
 
-    inner_repair = rand([repair_random_basket, repair_greedy_basket, repair_neighbor_basket, repair_placement_basket])
+    inner_repair = rand([repair_random_basket, repair_greedy_basket, repair_neighbor_basket_v2, repair_placement_basket])
 
     (deck,cargo_on,basket) = inner_repair(deck, cargo2place, cargo_on,basket)
 
@@ -501,7 +671,7 @@ function repair_out_basket(deck, cargo2place, cargo_on, basket)
     basket = deepcopy(basket)
 
     if isempty(basket)
-        inner_repair = rand([repair_random_basket, repair_greedy_basket, repair_neighbor_basket, repair_placement_basket])
+        inner_repair = rand([repair_random_basket, repair_greedy_basket, repair_neighbor_basket_v2, repair_placement_basket,])
         (deck,cargo_on,basket) = inner_repair(deck, cargo2place, cargo_on,basket)
         return deck, cargo_on, basket
     end

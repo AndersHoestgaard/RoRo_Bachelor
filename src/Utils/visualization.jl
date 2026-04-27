@@ -56,15 +56,62 @@ function plot_solution_details(sol_details)
     PlotlyJS.plot(bar(x=tags, y=vals))
 end
 
-function plot_alns_sim(results;figtitle=nothing)
-    if !isnothing(figtitle)
-        Plots.plot(1:length(results),results,xlabel = "number of iterations",
-    ylabel = "obj. val. of best solution",
-    title=figtitle,legend = false)
-    else
-        Plots.plot(1:length(results),results,xlabel = "number of iterations",
-    ylabel = "obj. val. of best solution",legend = false)
+function plot_alns_sim(results; figtitle=nothing, deck=nothing, deck_horizontal=true)
+    # If no deck provided, behave as before and return a single plot
+    if isnothing(deck)
+        if !isnothing(figtitle)
+            return Plots.plot(1:length(results), results,
+                xlabel = "number of iterations",
+                ylabel = "obj. val. of best solution",
+                title = figtitle,
+                legend = false)
+        else
+            return Plots.plot(1:length(results), results,
+                xlabel = "number of iterations",
+                ylabel = "obj. val. of best solution",
+                legend = false)
+        end
     end
+
+    # When a deck matrix is provided, create a side-by-side layout: deck heatmap + alns plot
+    # Build color mapping similar to `plot_deck`
+    num_of_ports = maximum(deck) - 2
+    color_dict = Dict(
+        0 => :gray,
+        1 => :white,
+        2 => :green
+    )
+    port_colors = [:red, :yellow, :orange, :blue, :pink, :brown, :green1, :olive, :cyan]
+    for i in 1:num_of_ports
+        color_dict[i+2] = port_colors[i]
+    end
+    colors = [color_dict[i] for i in 0:maximum(deck)]
+
+    # Prepare deck data orientation
+    deck_data = deck
+    if !deck_horizontal
+        deck_data = transpose(deck)
+    end
+
+    # Deck heatmap using Plots (colormap built from discrete colors)
+    p1 = Plots.heatmap(deck_data, colormap = cgrad(colors), colorbar = false,
+        clims = (0, maximum(deck)), title = "Deck")
+
+    # ALNS objective plot
+    p2 = if !isnothing(figtitle)
+            Plots.plot(1:length(results), results,
+                xlabel = "number of iterations",
+                ylabel = "obj. val. of best solution",
+                title = figtitle,
+                legend = false)
+         else
+            Plots.plot(1:length(results), results,
+                xlabel = "number of iterations",
+                ylabel = "obj. val. of best solution",
+                legend = false)
+         end
+
+    Plots.plot(p1, p2, layout = (1, 2), size = (1000, 400))
 end
 
 function plot_param_tune(res::Dict; title=nothing, xlabel="parameter", ylabel="value", plot_line=true, marker=:circle)

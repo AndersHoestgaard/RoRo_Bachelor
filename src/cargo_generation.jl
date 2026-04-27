@@ -15,19 +15,19 @@ function generate_cargo_port(n; num_ports=5, rng = nothing)
     end
 end 
 
-function generate_arrival_times_exp(n;p_arrived=0.2,lambd=1/60, rng=nothing)
+function generate_arrival_times_exp(n;p_arrived=0.2,mean_minutes=1, rng=nothing)
     if rng !== nothing
-        i_times = [rand(rng,Exponential(lambd)) for _ in 1:n]
-        i_times[1:Int(round(p_arrived*n))] = 0.02
+        i_times = [rand(rng,Exponential(mean_minutes)) for _ in 1:n]
+        i_times[1:Int(round(p_arrived*n))] .= 0.0
         return cumsum(i_times)
     else
-        i_times = [rand(Exponential(lambd)) for _ in 1:n]
-        i_times[1:Int(round(p_arrived*n))] = 0.02
+        i_times = [rand(Exponential(mean_minutes)) for _ in 1:n]
+        i_times[1:Int(round(p_arrived*n))] .= 0.0
         return cumsum(i_times)
     end
 end
 
-function generate_rev(n;pricelist = [6000, 6750, 7500, 8250, 9000],rng = nothing)
+function generate_rev(n;pricelist = [1000,1200,1400,1600],rng = nothing) #[6000, 6750, 7500, 8250, 9000][1000,1200,1400]
     if rng !== nothing
         return [rand(rng,pricelist) for _ in 1:n]
     else
@@ -42,17 +42,17 @@ struct Cargo
     rev::Float32
 end
 
-function genereate_cargo_structs(n;num_ports = 5, lambd = 1/60,seed = nothing)
+function genereate_cargo_structs(n;num_ports = 5, mean_minutes = 1,seed = nothing)
     
     if seed !== nothing
         types = generate_cargo_type(n,rng=MersenneTwister(seed))
         ports = generate_cargo_port(n,num_ports=num_ports,rng=MersenneTwister(seed))
-        arr_times = generate_arrival_times_exp(n,lambd = lambd,rng=MersenneTwister(seed))
+        arr_times = generate_arrival_times_exp(n,mean_minutes = mean_minutes,rng=MersenneTwister(seed))
         revs = generate_rev(n,rng=MersenneTwister(seed))
     else
         types = generate_cargo_type(n)
         ports = generate_cargo_port(n, num_ports=num_ports)
-        arr_times = generate_arrival_times_exp(n,lambd=lambd)
+        arr_times = generate_arrival_times_exp(n,mean_minutes=mean_minutes)
         revs = generate_rev(n)
     end
     cargolist = [Cargo(types[i],ports[i],arr_times[i],revs[i]) for i in 1:n]
