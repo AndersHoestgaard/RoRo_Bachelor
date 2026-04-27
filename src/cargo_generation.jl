@@ -27,7 +27,7 @@ function generate_arrival_times_exp(n;p_arrived=0.2,mean_minutes=1, rng=nothing)
     end
 end
 
-function generate_rev(n;pricelist = [6000, 6750, 7500, 8250, 9000],rng = nothing)
+function generate_rev(n;pricelist = [1000,1200,1400,1600],rng = nothing) #[6000, 6750, 7500, 8250, 9000][1000,1200,1400]
     if rng !== nothing
         return [rand(rng,pricelist) for _ in 1:n]
     else

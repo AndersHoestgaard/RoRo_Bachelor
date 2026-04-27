@@ -1,7 +1,7 @@
 using Graphs, SimpleWeightedGraphs
 # Assuming cargo can move sideways freely and but only move up and down if space is available
 
-function get_c_loc(deck; port=1, reverse_cols=true, reverse_rows=false) #Get cargo loc. Reverse_cols and Reverserows implemented by chatgpt
+function get_c_loc(deck; port=1, reverse_cols=true, reverse_rows=true) #Get cargo loc. Reverse_cols and Reverserows implemented by chatgpt
 
     portid = port + 2
     id_cargo = []
@@ -37,7 +37,7 @@ function get_graph(deck) #Model deck as dir. weighted graph.
     m, n = size(deck)
     @assert n>m "Deck orientation is wrong"
 
-    bigM = 100
+    bigM = 500
     g = SimpleWeightedDiGraph(m * n)
         
     for i in 1:m
@@ -87,6 +87,23 @@ function get_graph(deck) #Model deck as dir. weighted graph.
                 cost = (deck[i,j+1] > 3) ? 1.0 : 0.0001
                 add_edge!(g, current_node, neighbor_node, cost)
             end
+
+            # SOUTH
+            if j < n && j!=1 && i !=n && i!=m && deck[i,j+1] != 0 && deck[i+1,j] > 0 && deck[i,j-1] >0 && deck[i+1,j-1] >0
+                neighbor_node = (i)*n + j
+                cost = maximum([sum([(deck[i+1,j] > 2), (deck[i,j-1] > 2),(deck[i+1,j-1] > 2) ]) ,0.0001])
+                add_edge!(g, current_node, neighbor_node, cost)
+            end
+
+            # NORTH
+            if j < n && j!=1 && i!=1 && deck[i,j+1] != 0 && deck[i-1,j] >0 && deck[i,j-1] >0 && deck[i-1,j-1] > 0
+                neighbor_node = (i-2)*n + j
+                cost = maximum([sum([(deck[i-1,j] > 2), (deck[i,j-1] > 2),(deck[i-1,j-1] > 2) ]) ,0.0001])
+                add_edge!(g, current_node, neighbor_node, cost)
+            end
+
+
+
         end
     end
     
@@ -199,6 +216,10 @@ function shortest_path_like_hansen(deck) # Shiortest path like the article by Ha
     
         
         push!(results, (start_pos, best_goal, min_dist, best_path))
+        if best_goal==Inf
+            println(deck)
+            @error hey
+        end
     end
     
     return results, V
