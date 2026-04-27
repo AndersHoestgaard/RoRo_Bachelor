@@ -1,8 +1,6 @@
-include(joinpath(pwd(), "src/Heuristics/alns.jl"))
+
 include(joinpath(pwd(), "src/Heuristics/alns_arrival_time.jl"))
 include(joinpath(pwd(), "src/Heuristics/grasp.jl"))
-
-include(joinpath(pwd(), "src/Heuristics/alns_fast.jl"))
 
 include("obj_func.jl")
 
@@ -11,61 +9,7 @@ using Random
 
 
 
-function simulate_alns_simple(deck, cargo; init = pri_rules2, destroyer = destroy_random, repairer=repair_random, n_sim=1000, xi=0.2 )
-    ob_vals = []
-    best_deck, best_cargo = init(deck,cargo)
-    best_val = evaluate_sol(best_deck,best_cargo)
 
-    for i in 1:n_sim
-        destroyed_deck, cargo2place, destroyed_cargo_on = destroyer(best_deck, best_cargo,xi=xi)
-        repaired_deck, repaired_cargo_on = repairer(destroyed_deck,cargo2place,destroyed_cargo_on)
-        
-        eval = evaluate_sol(repaired_deck, repaired_cargo_on)
-
-        if eval> best_val
-            best_deck = repaired_deck
-            best_cargo = repaired_cargo_on
-            best_val = eval
-            
-        end
-        push!(ob_vals,best_val)
-
-    end
-    return best_deck, ob_vals
-end
-
-function simulate_alns(deck, cargo; init = pri_rules2, destroyer = destroy_random, repairer=repair_random, n_sim=1000, xi=0.2, acceptance_prob=0.1)
-    ob_vals = []
-    best_deck, best_cargo = init(deck, cargo)
-    best_val = evaluate_sol(best_deck, best_cargo)
-    
-    current_deck = copy(best_deck)
-    current_cargo = copy(best_cargo)
-    current_val = best_val
-
-    for i in 1:n_sim
-        destroyed_deck, cargo2place, destroyed_cargo_on = destroyer(current_deck, current_cargo, xi=xi)
-        repaired_deck, repaired_cargo_on = repairer(destroyed_deck, cargo2place, destroyed_cargo_on)
-        
-        new_val = evaluate_sol(repaired_deck, repaired_cargo_on)
-
-        if new_val > best_val
-            best_deck = repaired_deck
-            best_cargo = repaired_cargo_on
-            best_val = new_val
-            current_deck = copy(repaired_deck)
-            current_cargo = copy(repaired_cargo_on)
-            current_val = new_val
-        elseif new_val > current_val || rand() < acceptance_prob
-            current_deck = repaired_deck
-            current_cargo = repaired_cargo_on
-            current_val = new_val
-        end
-        
-        push!(ob_vals, best_val)
-    end
-    return best_deck, ob_vals
-end
 
 
 function alns_hansen_basket(deck, cargo;
@@ -94,7 +38,7 @@ function alns_hansen_basket(deck, cargo;
         print_status=true,
         early_stop_thres = false,
         grasp_its = 2000,
-        priority = [0.6,0.20,0.20])
+        priority = [0.4, 0.3, 0.3])
 
     t1 = time()
     nd = length(destroy_ops)
@@ -159,9 +103,14 @@ function alns_hansen_basket(deck, cargo;
     its = 0
     it_found = 0
     t_found = 0
-    
-    for it in 1:iterations
+    target_delta = best_val * 0.05
+    temperature = -target_delta / log(0.5)
 
+    # Cooling rate (alpha)
+    # For 20,000 iterations, 0.999 is a standard starting point
+    cooling_rate = 0.999
+    for it in 1:iterations
+        
         its = it
         timespent = time() -t1
         if timespent > time_lim
@@ -240,7 +189,7 @@ function alns_hansen_basket(deck, cargo;
             xi_current = max(xi_min, xi_current - xi_step_down/2)
             iter_since_improve = 0
 
-        elseif rand() < accept_worse
+        elseif exp((new_val-current_val)/temperature) > rand()
 
             current_deck = new_deck
             current_cargo = new_cargo
@@ -257,6 +206,7 @@ function alns_hansen_basket(deck, cargo;
         end
 
         push!(history, best_val)
+        temperature *= cooling_rate
 
         if early_stop_thres != false && (its-it_found) > early_stop_thres 
             println("ran $its iterations and $timespent seconds")
