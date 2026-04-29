@@ -1,8 +1,9 @@
 # ============================================================
 # test_mip_continuous.jl
 # Run from project root
-# Tests MIP continuous on toy instances of varying sizes
 # MIP with continuous delay penalty matching obj_func.jl
+# New movements: East, West, NE, SE, North, South
+# Fix: removed j == ncols && continue to allow arcs to ramp
 # ============================================================
 
 using JuMP, HiGHS, Distributions, Random, Graphs,
@@ -49,8 +50,6 @@ function build_mip_from_cargo(cargo_list, h_val;
     Gamma = Dict{Tuple{Tuple{Int,Int},Tuple{Int,Int}},Vector{Tuple{Int,Int}}}()
 
     for (i,j) in S
-        j == ncols && continue
-
         # East
         t = (i, j+1)
         if j+1 <= ncols && t in S
@@ -60,11 +59,11 @@ function build_mip_from_cargo(cargo_list, h_val;
 
         # West
         t = (i, j-1)
-        if j-1 >= 1 && t in S && j+1 <= ncols && (i,j+1) in S
+        if j-1 >= 1 && t in S
             push!(A, ((i,j), t))
             cl = Tuple{Int,Int}[]
             (i,j-1) in S && push!(cl, (i,j-1))
-            (i,j+1) in S && push!(cl, (i,j+1))
+            j+1 <= ncols && (i,j+1) in S && push!(cl, (i,j+1))
             Gamma[((i,j), t)] = cl
         end
 
@@ -93,9 +92,9 @@ function build_mip_from_cargo(cargo_list, h_val;
         end
 
         # South
-        if i < nrows && j >= 1 && j+1 <= ncols && j-1 >= 1
+        if i < nrows && j >= 1 && j-1 >= 1
             t = (i+1, j)
-            if t in S && (i,j+1) in S && (i,j-1) in S && (i+1,j-1) in S
+            if t in S && j+1 <= ncols && (i,j+1) in S && (i,j-1) in S && (i+1,j-1) in S
                 push!(A, ((i,j), t))
                 cl = Tuple{Int,Int}[]
                 (i+1,j)   in S && push!(cl, (i+1,j))
@@ -106,9 +105,9 @@ function build_mip_from_cargo(cargo_list, h_val;
         end
 
         # North
-        if i > 1 && j >= 1 && j+1 <= ncols && j-1 >= 1
+        if i > 1 && j >= 1 && j-1 >= 1
             t = (i-1, j)
-            if t in S && (i,j+1) in S && (i,j-1) in S && (i-1,j-1) in S
+            if t in S && j+1 <= ncols && (i,j+1) in S && (i,j-1) in S && (i-1,j-1) in S
                 push!(A, ((i,j), t))
                 cl = Tuple{Int,Int}[]
                 (i-1,j)   in S && push!(cl, (i-1,j))
@@ -188,7 +187,7 @@ function solve_mip_continuous(inst, perfect_wt; verbose=false)
 
     for p in P, c in C, dc in C
         c==dc && continue
-        U[dc]<=p && continue
+        U[dc] < p && continue
         for s in S
             flow_in = [a for a in A if a[2]==s]
             cl_arcs = [a for a in A if s in Gamma[a]]
@@ -320,18 +319,12 @@ function run_mip_on_instances(instances, label; h_val=7, verbose=false)
 end
 
 # ============================================================
-# Toy instances of varying sizes
+# Training instances — DeckA 20 cargo 6 ports
 # ============================================================
-Random.seed!(1234)
-toy_5  = [genereate_cargo_structs(5,  seed=i, num_ports=6) for i in 1:5]
-toy_10 = [genereate_cargo_structs(10, seed=i, num_ports=6) for i in 1:5]
-toy_15 = [genereate_cargo_structs(15, seed=i, num_ports=6) for i in 1:5]
-toy_20 = [genereate_cargo_structs(20, seed=i, num_ports=6) for i in 1:5]
-toy_25 = [genereate_cargo_structs(25, seed=i, num_ports=6) for i in 1:5]
+Random.seed!(4242)
+trainsize  = 20
+seedstrain = [rand(1:10000) for i in 1:trainsize]
+deckA20    = [genereate_cargo_structs(floor(Int,20), seed=i, num_ports=6) for i in seedstrain]
 
-# --- Run ---
-run_mip_on_instances(toy_5,  "5 cargo  6 ports", h_val=7)
-run_mip_on_instances(toy_10, "10 cargo 6 ports", h_val=7)
-run_mip_on_instances(toy_15, "15 cargo 6 ports", h_val=7)
-run_mip_on_instances(toy_20, "20 cargo 6 ports", h_val=7)
-run_mip_on_instances(toy_25, "25 cargo 6 ports", h_val=7)
+# --- run ---
+run_mip_on_instances(deckA20[1:5], "DeckA 20 cargo 6 ports", h_val=7, verbose=true)
