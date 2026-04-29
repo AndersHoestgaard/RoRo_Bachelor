@@ -2,8 +2,8 @@
 # test_mip_continuous.jl
 # Run from project root
 # MIP with continuous delay penalty matching obj_func.jl
-# New movements: East, West, NE, SE, North, South
 # Fix: removed j == ncols && continue to allow arcs to ramp
+# Sequential handling: only 1 cargo handled at a time
 # ============================================================
 
 using JuMP, HiGHS, Distributions, Random, Graphs,
@@ -39,8 +39,6 @@ function build_mip_from_cargo(cargo_list, h_val;
     E         = ramp
     S_no_exit = [s for s in S if !(s in E)]
 
-    # heuristic ports: 3..num_ports+2
-    # remap: heuristic port p → MIP port p-1
     max_heur_port = maximum(c.port for c in cargo_list)
     num_ports     = max_heur_port - 2
     P             = collect(1:num_ports+1)
@@ -128,7 +126,7 @@ function build_mip_from_cargo(cargo_list, h_val;
     C_load   = Dict(p => [c for c in C if L[c]==p] for p in P)
     C_unload = Dict(p => [c for c in C if U[c]==p] for p in P)
 
-    M = Float64(length(cargo_list))
+    M = maximum(values(Ac)) + length(cargo_list) * h_val + 1000.0
 
     return (S=S, E=E, S_no_exit=S_no_exit, P=P, C=C, A=A, Gamma=Gamma,
             L=L, U=U, Ac=Ac, h=h, r=r, R=R,
@@ -139,6 +137,7 @@ end
 
 # ============================================================
 # MIP solver
+# Sequential handling: only 1 cargo at a time
 # ============================================================
 function solve_mip_continuous(inst, perfect_wt; verbose=false)
     (;S,E,S_no_exit,P,C,A,Gamma,L,U,Ac,h,r,R,
@@ -154,6 +153,8 @@ function solve_mip_continuous(inst, perfect_wt; verbose=false)
     @variable(model, ST[C,P] >= 0)
     @variable(model, Dep[P] >= 0)
     @variable(model, delay >= 0)
+    # binary variable: z[c1,c2] = 1 if c1 handled before c2
+    @variable(model, z[C,C], Bin)
 
     @constraint(model,[c in C,a in A,p in P],
         f[c,a,p] <= R[c]*y[c])
@@ -198,8 +199,24 @@ function solve_mip_continuous(inst, perfect_wt; verbose=false)
         end
     end
 
+    # arrival time constraint
     @constraint(model,[c in C],
         ST[c,L[c]] >= Ac[c] - M*(1-y[c]))
+
+    # sequential handling — only 1 cargo at a time
+    # z[c1,c2] = 1 means c1 is handled before c2
+    for c1 in C, c2 in C
+        c1 == c2 && continue
+        # z[c1,c2] + z[c2,c1] == 1 — one must come before the other
+        @constraint(model, z[c1,c2] + z[c2,c1] == 1)
+        # if c1 before c2: ST[c2] >= ST[c1] + h[c1] - M*(1-z[c1,c2])
+        @constraint(model,
+            ST[c2,L[c2]] >= ST[c1,L[c1]] + h[c1] - M*(1-z[c1,c2]))
+        # if c2 before c1: ST[c1] >= ST[c2] + h[c2] - M*(1-z[c2,c1])
+        @constraint(model,
+            ST[c1,L[c1]] >= ST[c2,L[c2]] + h[c2] - M*(1-z[c2,c1]))
+    end
+
     for p in P, c in union(C_load[p],C_unload[p])
         @constraint(model, Dep[p] >= ST[c,p]+h[c])
     end
@@ -228,6 +245,12 @@ function solve_mip_continuous(inst, perfect_wt; verbose=false)
                 else
                     println("  Cargo $c → rejected, port: $(U[c]), arr: $(round(Ac[c],digits=2)), rev: $(r[c])")
                 end
+            end
+            println("\nHandling order:")
+            accepted = [c for c in C if value(y[c])>0.5]
+            sorted_by_st = sort(accepted, by=c->value(ST[c,L[c]]))
+            for c in sorted_by_st
+                println("  Cargo $c: start=$(round(value(ST[c,L[c]]),digits=2)) min, finish=$(round(value(ST[c,L[c]])+h[c],digits=2)) min, arr=$(round(Ac[c],digits=2)) min")
             end
             println("\nDeparture times:")
             for p in P
@@ -326,5 +349,5 @@ trainsize  = 20
 seedstrain = [rand(1:10000) for i in 1:trainsize]
 deckA20    = [genereate_cargo_structs(floor(Int,20), seed=i, num_ports=6) for i in seedstrain]
 
-# --- run ---
-run_mip_on_instances(deckA20[1:5], "DeckA 20 cargo 6 ports", h_val=7, verbose=true)
+# --- run first instance with first 5 cargo ---
+run_mip_on_instances([deckA20[1][1:5]], "DeckA 5 cargo 6 ports", h_val=7, verbose=true)
