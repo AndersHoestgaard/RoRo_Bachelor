@@ -180,7 +180,7 @@ end
 
 function wait_time(deck, cargo_on;
     handling_time = 7,
-    num_operators = 5,
+    num_operators = 1,
     percent_arrived = 0.2)
 
     V = loading_order(deck, cargo_on)

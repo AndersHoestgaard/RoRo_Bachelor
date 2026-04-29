@@ -38,13 +38,15 @@ end
 
 function grasp(deck, cargo;
         max_iter = 2000,
+        max_time = 180,
         pcostshift = 250, 
-        timecost = 1000/60,
+        timecost = 500/60,
         handling_time = 7,
         num_operators = 5,
-        normalise = true)  
+        normalise = false)  
 
-    m, n = size(deck)
+    t1=time()
+        m, n = size(deck)
 
     best_deck     = nothing
     best_cargo_on = nothing
@@ -58,27 +60,29 @@ function grasp(deck, cargo;
 
     wD = ones(7)
     wL = ones(5)
-    wI = ones(4)
+    wI = ones(2)
 
 
     score_D = zeros(7)
     score_L = zeros(5)
-    score_I = zeros(4)
+    score_I = zeros(2)
 
 
     count_D = zeros(7)
     count_L = zeros(5)   
-    count_I = zeros(4)   
+    count_I = zeros(12)   
 
 
     for it in 1:max_iter
-
+        if time()-t1 > max_time
+            return best_deck, best_cargo_on 
+        end
         deck_sol   = copy(deck)
         cargo_pool = copy(cargo)
         cargo_on   = Array{Union{Nothing, eltype(cargo)}, 2}(nothing, m, n)
 
         d = sample(1:7, Weights(wD))
-        ins = sample(1:4, Weights(wI))
+        ins = sample(1:2, Weights(wI))
         l_index = sample(1:5, Weights(wL))
         
 

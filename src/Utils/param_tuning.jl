@@ -11,11 +11,11 @@ function param_tune(
     alns_runtime = 25,
     segment = 100,
     eta = 0.1,
-    accept_worse = 0.1,
     sig1 = 33,
     sig2 = 9,
     sig3 = 3,
-    xi=0.1
+    xi=0.1,
+    patience = 2000
 )
 
     res = Dict()
@@ -33,7 +33,6 @@ function param_tune(
                     :time_lim => alns_runtime,
                     :segment => segment,
                     :eta => eta,
-                    :accept_worse => accept_worse,
                     :sig1 => sig1,
                     :sig2 => sig2,
                     :sig3 => sig3,
@@ -43,7 +42,7 @@ function param_tune(
                 # Override tuned parameter
                 kwargs[param2test] = p
 
-                d, c, h = alns_hansen_basket(deck, cargo; kwargs..., print_status=false)
+                d, c, h, _ = alns_hansen_basket(deck, cargo; kwargs..., print_status=false,early_stop_thres=patience)
 
                 push!(instance_results, h[end])
             end

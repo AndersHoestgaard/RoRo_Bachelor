@@ -7,11 +7,8 @@ function evaluate_sol(deck, cargo_on;
     timecost = 500/60,
     shift_evaluator="work_tot",
     handling_time = 7,
-    num_operators = 5,
-    sol_details = false,
-    normalised=false,
-    norms = [1,1,1],
-    priority = [0.50,0.3,0.2])
+    num_operators = 1,
+    sol_details = false,)
 
     deck = deepcopy(deck)
     cargo_on = deepcopy(cargo_on)
@@ -21,7 +18,7 @@ function evaluate_sol(deck, cargo_on;
     else
         totrev = sum([cargo.rev for cargo in c_on])
     end
-    wcost = maximum([0,wait_time(deck,cargo_on,handling_time=handling_time,num_operators=num_operators)-perfect_wait_time(deck,cargo_on)])*timecost
+    wcost = wait_time(deck,cargo_on,handling_time=handling_time,num_operators=num_operators)*timecost
     
     if shift_evaluator == "work"
         shift_cost = min_shifts_work(deck)*pcostshift
@@ -36,22 +33,6 @@ function evaluate_sol(deck, cargo_on;
     end
     if sol_details
         return (totrev, wcost, shift_cost)
-    elseif normalised
-        normrev,normwait,normshift = norms
-        p1,p2,p3 = priority
-        #println(totrev/normrev)
-        #println(wcost/normwait )
-        #println(shift_cost/normshift)
-        #println(min_shift_all_cargo_work(deck),"   ",pcostshift)
-
-        if shift_cost == Inf
-            display(deck)
-        end
-        if wcost == Inf
-            display(deck)
-        end
-
-        return p1*totrev/normrev - p2*wcost/max(0.001,normwait) - p3*shift_cost/maximum([1,normshift])
     else
         return totrev - wcost - shift_cost
     end

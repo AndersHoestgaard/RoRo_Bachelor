@@ -13,20 +13,20 @@ using Random
 
 
 function alns_hansen_basket(deck, cargo;
-        destroy_ops = [destroy_neighbor_basket_v2, destroy_area_basket, destroy_port_basket, destroy_random_basket, destroy_shifting_cost_basket, destroy_bordering],
-        repair_ops = [repair_greedy_basket, repair_neighbor_basket_v2,repair_placement_basket, repair_random_basket, repair_in_basket, repair_out_basket],
-        init = grasp,
-        iterations = 20000,
+        destroy_ops = [destroy_area_basket ,destroy_neighbor_basket_v2, destroy_port_basket, destroy_random_basket, destroy_shifting_cost_basket],
+        repair_ops = [repair_neighbor_basket_v2, repair_placement_basket, repair_random_basket,repair_in_basket, repair_out_basket],
+        init = load_random,
+        iterations = 200000,
         time_lim = 10000,
-        segment = 100,
+        segment = 20,
         eta = 0.1,
-        accept_worse = 0.2,
+        cooling_rate = 0.9975,
         sig1 = 33,
         sig2 = 9,
         sig3 = 3,
-        xi = 0.2,
+        xi = 0.4,
         xi_min = 0.05,
-        xi_max = 0.6,
+        xi_max = 0.8,
         xi_step_up = 0.02,
         xi_step_down = 0.01,
         stagnation_increase_after = 50,
@@ -34,11 +34,10 @@ function alns_hansen_basket(deck, cargo;
         pcostshift = 250, 
         timecost = 500/60,
         handling_time = 7,
-        num_operators = 5,
+        num_operators = 1,
         print_status=true,
         early_stop_thres = false,
-        grasp_its = 2000,
-        priority = [0.4, 0.3, 0.3])
+        grasp_its = 500)
 
     t1 = time()
     nd = length(destroy_ops)
@@ -66,16 +65,7 @@ function alns_hansen_basket(deck, cargo;
     else
         best_deck, best_cargo = init(deck, cargo)
     end
-    normdeckc = load_random(deck,cargo)
 
-    norms = evaluate_sol(normdeckc[1],normdeckc[2],
-                            pcostshift=pcostshift,
-                            timecost = timecost,
-                            handling_time = handling_time,
-                            num_operators = num_operators,
-                            sol_details=true,
-                            priority=priority
-                            )
 
     best_val = evaluate_sol(best_deck, 
                             best_cargo,
@@ -83,8 +73,6 @@ function alns_hansen_basket(deck, cargo;
                             timecost = timecost,
                             handling_time = handling_time,
                             num_operators = num_operators,
-                            norms=norms,
-                            priority=priority
                             )
     
     
@@ -103,12 +91,9 @@ function alns_hansen_basket(deck, cargo;
     its = 0
     it_found = 0
     t_found = 0
-    target_delta = best_val * 0.05
-    temperature = -target_delta / log(0.5)
+    target_delta = best_val * 0.10
+    temperature = -target_delta / log(0.1)
 
-    # Cooling rate (alpha)
-    # For 20,000 iterations, 0.999 is a standard starting point
-    cooling_rate = 0.999
     for it in 1:iterations
         
         its = it
@@ -129,10 +114,6 @@ function alns_hansen_basket(deck, cargo;
         destroy = destroy_ops[d]
         repair = repair_ops[r]
 
-
-        
-        
-
         use_d[d] += 1
         use_r[r] += 1
         destroyed_deck, cargo2place, destroyed_cargo, dbasket =
@@ -145,8 +126,6 @@ function alns_hansen_basket(deck, cargo;
                             timecost = timecost,
                             handling_time = handling_time,
                             num_operators = num_operators,
-                            norms=norms,
-                            priority=priority
                             )
 
 
@@ -210,7 +189,9 @@ function alns_hansen_basket(deck, cargo;
 
         if early_stop_thres != false && (its-it_found) > early_stop_thres 
             println("ran $its iterations and $timespent seconds")
-
+            if ret_weights
+                return best_deck, history, his_w_d, his_w_r, destroy_ops, repair_ops
+            end
             return best_deck, best_cargo, history, t_found
         end
         # weight updates
