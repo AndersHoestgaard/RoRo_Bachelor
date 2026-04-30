@@ -1,5 +1,16 @@
+# ============================================================
+# test_mip_continuous.jl
+# Run from project root
+# MIP with continuous delay penalty matching obj_func.jl
+# Fix: removed j == ncols && continue to allow arcs to ramp
+# Sequential handling: only 1 cargo at a time
+# Objective: revenue - timecost * Dep[1] - shift cost
+# No perfect wait time — charge full departure time
+# ============================================================
+
 using JuMP, HiGHS, Distributions, Random, Graphs,
       SimpleWeightedGraphs, StatsBase, Printf, Statistics
+import MathOptInterface as MOI
 
 include(joinpath(pwd(), "src/deck_representation.jl"))
 include(joinpath(pwd(), "src/cargo_generation.jl"))
@@ -154,7 +165,7 @@ function solve_mip_continuous(inst; verbose=false)
 
     @objective(model, Max,
         sum(r[c]*y[c] for c in C)
-        - timecost * Dep[first(P)]
+        - timecost * Dep[1]
         - C_shift * sum(delta[c,s,p] for c in C,s in S,p in P))
 
     @constraint(model,[c in C],
@@ -211,51 +222,57 @@ function solve_mip_continuous(inst; verbose=false)
     t_mip   = round(time()-t_start, digits=2)
     status  = termination_status(model)
 
-    if status == OPTIMAL || status == MOI.TIME_LIMIT
-        if primal_status(model) == MOI.FEASIBLE_POINT
-            obj        = objective_value(model)
-            n_accepted = sum(value(y[c])>0.5 ? 1 : 0 for c in C)
-            n_shifts   = sum(value(delta[c,s,p])>0.5 ? 1 : 0
-                             for c in C,s in S,p in P)
-            dep1      = value(Dep[first(P)])
+    if primal_status(model) == MOI.FEASIBLE_POINT
+        obj        = objective_value(model)
+        bound      = objective_bound(model)
+        gap        = abs(bound - obj) / max(abs(obj), 1e-6) * 100
+        n_accepted = sum(value(y[c])>0.5 ? 1 : 0 for c in C)
+        n_shifts   = sum(value(delta[c,s,p])>0.5 ? 1 : 0
+                         for c in C,s in S,p in P)
+        dep1       = value(Dep[1])
 
-            if verbose
-                println("\nCargo decisions:")
-                for c in C
-                    if value(y[c])>0.5
-                        slots=[s for s in S if value(x[c,s])>0.5]
-                        println("  Cargo $c → accepted, slot: $slots, port: $(U[c]), arr: $(round(Ac[c],digits=2)), rev: $(r[c])")
-                    else
-                        println("  Cargo $c → rejected, port: $(U[c]), arr: $(round(Ac[c],digits=2)), rev: $(r[c])")
-                    end
+        if verbose
+            println("\nCargo decisions:")
+            for c in C
+                if value(y[c])>0.5
+                    slots=[s for s in S if value(x[c,s])>0.5]
+                    println("  Cargo $c → accepted, slot: $slots, port: $(U[c]), arr: $(round(Ac[c],digits=2)), rev: $(r[c])")
+                else
+                    println("  Cargo $c → rejected, port: $(U[c]), arr: $(round(Ac[c],digits=2)), rev: $(r[c])")
                 end
-                println("\nHandling order:")
-                accepted = [c for c in C if value(y[c])>0.5]
-                sorted_by_st = sort(accepted, by=c->value(ST[c,L[c]]))
-                for c in sorted_by_st
-                    println("  Cargo $c: start=$(round(value(ST[c,L[c]]),digits=2)) min, finish=$(round(value(ST[c,L[c]])+h[c],digits=2)) min, arr=$(round(Ac[c],digits=2)) min")
-                end
-                println("\nDeparture time:")
-                println("  Port 1: $(round(value(Dep[1]),digits=2)) min")
-                println("\nObjective breakdown:")
-                rev        = sum(r[c] for c in C if value(y[c])>0.5)
-                dep_cost   = round(timecost * dep1, digits=2)
-                shift_cost = round(C_shift * n_shifts, digits=2)
-                println("  Revenue:    $(round(rev,digits=2))€")
-                println("  Dep[1]:     $(round(dep1,digits=2)) min")
-                println("  Dep cost:   $(dep_cost)€")
-                println("  Shifts:     $n_shifts")
-                println("  Shift cost: $(shift_cost)€")
-                println("  Total obj:  $(round(obj,digits=2))€")
-                println("  Status:     $status")
             end
-
-            return (obj=obj, n_accepted=n_accepted, n_shifts=n_shifts,
-                    dep1=dep1, status=status, time=t_mip), model
+            println("\nHandling order:")
+            accepted     = [c for c in C if value(y[c])>0.5]
+            sorted_by_st = sort(accepted, by=c->value(ST[c,L[c]]))
+            for c in sorted_by_st
+                println("  Cargo $c: start=$(round(value(ST[c,L[c]]),digits=2)) min, ",
+                    "finish=$(round(value(ST[c,L[c]])+h[c],digits=2)) min, ",
+                    "arr=$(round(Ac[c],digits=2)) min")
+            end
+            println("\nDeparture time:")
+            println("  Port 1: $(round(dep1,digits=2)) min")
+            println("\nObjective breakdown:")
+            rev        = sum(r[c] for c in C if value(y[c])>0.5)
+            dep_cost   = round(timecost * dep1, digits=2)
+            shift_cost = round(C_shift * n_shifts, digits=2)
+            println("  Revenue:    $(round(rev,digits=2))€")
+            println("  Dep[1]:     $(round(dep1,digits=2)) min")
+            println("  Dep cost:   $(dep_cost)€")
+            println("  Shifts:     $n_shifts")
+            println("  Shift cost: $(shift_cost)€")
+            println("  Total obj:  $(round(obj,digits=2))€")
+            println("  Bound:      $(round(bound,digits=2))€")
+            println("  Gap:        $(round(gap,digits=2))%")
+            println("  Status:     $status")
         end
+
+        return (obj=obj, bound=bound, gap=gap,
+                n_accepted=n_accepted, n_shifts=n_shifts,
+                dep1=dep1, status=status, time=t_mip), model
     end
 
-    return (obj=nothing, n_accepted=0, n_shifts=0,
+    return (obj=nothing, bound=nothing, gap=nothing,
+            n_accepted=0, n_shifts=0,
             dep1=0.0, status=status, time=t_mip), model
 end
 
@@ -263,14 +280,14 @@ end
 # Run on instances
 # ============================================================
 function run_mip_on_instances(instances, label; h_val=7, verbose=false)
-    println("="^105)
+    println("="^115)
     println("MIP — $label")
     println("Parameters: timecost=500/60 €/min, C_shift=250, handling_time=$(h_val) min")
-    println("="^105)
-    @printf("%-12s  %10s  %8s  %8s  %10s  %10s  %8s  %12s\n",
-        "Instance", "MIP Obj", "Acc", "Shifts",
-        "Revenue", "Dep cost", "Time (s)", "Status")
-    println("-"^105)
+    println("="^115)
+    @printf("%-12s  %10s  %10s  %8s  %8s  %8s  %10s  %8s  %12s\n",
+        "Instance", "MIP Obj", "Bound", "Gap(%)", "Acc", "Shifts",
+        "Dep cost", "Time (s)", "Status")
+    println("-"^115)
 
     obj_vals   = Float64[]
     times      = Float64[]
@@ -285,12 +302,13 @@ function run_mip_on_instances(instances, label; h_val=7, verbose=false)
         if mip_result.obj !== nothing
             rev      = sum(inst.r[c] for c in inst.C)
             dep_cost = round((500/60)*mip_result.dep1, digits=2)
-            @printf("%-12s  %10.2f  %8d  %8d  %10.2f  %10.2f  %8.2f  %12s\n",
+            @printf("%-12s  %10.2f  %10.2f  %7.2f%%  %8d  %8d  %10.2f  %8.2f  %12s\n",
                 "inst $i",
                 mip_result.obj,
+                mip_result.bound,
+                mip_result.gap,
                 mip_result.n_accepted,
                 mip_result.n_shifts,
-                rev,
                 dep_cost,
                 mip_result.time,
                 string(mip_result.status))
@@ -300,9 +318,9 @@ function run_mip_on_instances(instances, label; h_val=7, verbose=false)
             push!(acc_vals,   mip_result.n_accepted)
             push!(shift_vals, mip_result.n_shifts)
         else
-            @printf("%-12s  %10s  %8d  %8d  %10s  %10s  %8.2f  %12s\n",
-                "inst $i", "-",
-                0, 0, "-", "-", mip_result.time,
+            @printf("%-12s  %10s  %10s  %8s  %8d  %8d  %10s  %8.2f  %12s\n",
+                "inst $i", "-", "-", "-",
+                0, 0, "-", mip_result.time,
                 string(mip_result.status))
             push!(obj_vals,   NaN)
             push!(times,      mip_result.time)
@@ -311,30 +329,31 @@ function run_mip_on_instances(instances, label; h_val=7, verbose=false)
         end
     end
 
-    println("="^105)
+    println("="^115)
     println("Summary:")
     valid = filter(!isnan, obj_vals)
     @printf("  Mean obj:      %.2f\n", isempty(valid) ? 0.0 : mean(valid))
     @printf("  Mean time:     %.2f s\n", mean(times))
     @printf("  Mean accepted: %.1f / %d\n", mean(acc_vals), length(instances[1]))
     @printf("  Mean shifts:   %.2f\n", mean(shift_vals))
-    println("="^105)
+    println("="^115)
 
     return obj_vals, times, acc_vals, shift_vals
 end
 
 # ============================================================
-# Sweep: 5, 10, 15, 20, 25, 30 cargo
+# Sweep: 5, 10, 15, 20, 25, 30, 35 cargo
 # 5 instances per size, seed 1:5, num_ports=6, h=7
 # 1 hour time limit per instance
 # ============================================================
-println("="^105)
+println("="^115)
 println("Cargo size sweep: n = 5, 10, 15, 20, 25, 30, 35")
 println("5 instances per size, seed 1:5, num_ports=6, h=7, time limit=3600s")
-println("="^105)
-@printf("%-8s  %-10s  %10s  %8s  %8s  %10s  %8s  %12s\n",
-    "n", "Instance", "MIP Obj", "Acc", "Shifts", "Dep[1]", "Time(s)", "Status")
-println("-"^105)
+println("="^115)
+@printf("%-8s  %-10s  %10s  %10s  %7s  %8s  %8s  %10s  %8s  %12s\n",
+    "n", "Instance", "MIP Obj", "Bound", "Gap(%)",
+    "Acc", "Shifts", "Dep[1]", "Time(s)", "Status")
+println("-"^115)
 
 for n in [5, 10, 15, 20, 25, 30, 35]
     for seed in 1:5
@@ -342,19 +361,21 @@ for n in [5, 10, 15, 20, 25, 30, 35]
         inst   = build_mip_from_cargo(cargo, 7, pcostshift=250, timecost=500/60)
         result, _ = solve_mip_continuous(inst, verbose=false)
         if result.obj !== nothing
-            @printf("%-8d  %-10s  %10.2f  %8d  %8d  %10.2f  %8.2f  %12s\n",
+            @printf("%-8d  %-10s  %10.2f  %10.2f  %6.2f%%  %8d  %8d  %10.2f  %8.2f  %12s\n",
                 n, "seed $seed",
-                result.obj, result.n_accepted, result.n_shifts,
+                result.obj, result.bound, result.gap,
+                result.n_accepted, result.n_shifts,
                 result.dep1, result.time, string(result.status))
         else
-            @printf("%-8d  %-10s  %10s  %8d  %8d  %10s  %8.2f  %12s\n",
+            @printf("%-8d  %-10s  %10s  %10s  %7s  %8d  %8d  %10s  %8.2f  %12s\n",
                 n, "seed $seed",
-                "-", 0, 0, "-", result.time, string(result.status))
+                "-", "-", "-", 0, 0, "-",
+                result.time, string(result.status))
         end
     end
-    println("-"^105)
+    println("-"^115)
 end
-println("="^105)
+println("="^115)
 
 println("\n--- Verbose run: n=5, seed=1 ---")
 let cargo = genereate_cargo_structs(5, seed=1, num_ports=6)
