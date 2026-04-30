@@ -181,7 +181,8 @@ end
 function wait_time(deck, cargo_on;
     handling_time = 7,
     num_operators = 1,
-    percent_arrived = 0.2)
+    percent_arrived = 0.2,
+    print_load_order = false)
 
     V = loading_order(deck, cargo_on)
 
@@ -230,6 +231,9 @@ function wait_time(deck, cargo_on;
             busy_until[op] = finish_time
             current_time = minimum(busy_until)
 
+            if print_load_order
+                println("loaded: ",c)
+            end
             push!(completed, c)
             deleteat!(queue, idx)
 

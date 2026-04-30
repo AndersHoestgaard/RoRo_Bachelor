@@ -15,7 +15,7 @@ function param_tune(
     sig2 = 9,
     sig3 = 3,
     xi=0.1,
-    patience = 2000
+    patience = 10000
 )
 
     res = Dict()

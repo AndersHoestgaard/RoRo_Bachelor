@@ -13,14 +13,16 @@ using Random
 
 
 function alns_hansen_basket(deck, cargo;
-        destroy_ops = [destroy_area_basket ,destroy_neighbor_basket_v2, destroy_port_basket, destroy_random_basket, destroy_shifting_cost_basket],
+        destroy_ops = [destroy_area_basket ,destroy_neighbor_basket_v2, destroy_port_basket, destroy_random_basket, destroy_shifting_cost_basket,destroy_lanes,destroy_latest],
         repair_ops = [repair_neighbor_basket_v2, repair_placement_basket, repair_random_basket,repair_in_basket, repair_out_basket],
         init = load_random,
         iterations = 200000,
         time_lim = 10000,
-        segment = 20,
+        segment = 100,
         eta = 0.1,
         cooling_rate = 0.9975,
+        P = 0.4,
+        delta = 0.2,
         sig1 = 33,
         sig2 = 9,
         sig3 = 3,
@@ -30,6 +32,7 @@ function alns_hansen_basket(deck, cargo;
         xi_step_up = 0.02,
         xi_step_down = 0.01,
         stagnation_increase_after = 50,
+        stagnation_restart_after = 10000,
         ret_weights = false,
         pcostshift = 250, 
         timecost = 500/60,
@@ -91,8 +94,8 @@ function alns_hansen_basket(deck, cargo;
     its = 0
     it_found = 0
     t_found = 0
-    target_delta = best_val * 0.10
-    temperature = -target_delta / log(0.1)
+    target_delta = best_val * delta
+    temperature = -target_delta / log(P)
 
     for it in 1:iterations
         
@@ -149,7 +152,7 @@ function alns_hansen_basket(deck, cargo;
             accepted = true
 
             # decrease removal size when a new best is found
-            xi_current = max(xi_min, xi_current - xi_step_down)
+            #xi_current = max(xi_min, xi_current - xi_step_down)
             iter_since_improve = 0
 
         elseif new_val > current_val
@@ -165,7 +168,7 @@ function alns_hansen_basket(deck, cargo;
             accepted = true
 
             # slight decrease on accepted improvement
-            xi_current = max(xi_min, xi_current - xi_step_down/2)
+            #xi_current = max(xi_min, xi_current - xi_step_down/2)
             iter_since_improve = 0
 
         elseif exp((new_val-current_val)/temperature) > rand()
@@ -220,9 +223,40 @@ function alns_hansen_basket(deck, cargo;
             use_r .= 0
         end
 
-        # if stuck for a while, increase removal fraction to diversify
-        if iter_since_improve >= stagnation_increase_after
-            xi_current = min(xi_max, xi_current + xi_step_up)
+        # if stuck for a very long time, restart with a new initial solution
+        if iter_since_improve >= stagnation_restart_after
+            if print_status
+                println("Restarting with new initial solution at iteration $it after $iter_since_improve iterations without improvement")
+            end
+            
+            # Generate new initial solution
+            if init == grasp
+                current_deck, current_cargo = init(deck, cargo;
+                    pcostshift = pcostshift, 
+                    timecost = timecost,
+                    handling_time = handling_time,
+                    num_operators = num_operators,
+                    max_iter=grasp_its) 
+            else
+                current_deck, current_cargo = init(deck, cargo)
+            end
+            
+            current_val = evaluate_sol(current_deck, current_cargo,
+                                        pcostshift=pcostshift,
+                                        timecost = timecost,
+                                        handling_time = handling_time,
+                                        num_operators = num_operators,
+                                        )
+            current_basket = []
+            
+            # Reset iteration counter and temperature for fresh start
+            iter_since_improve = 0
+            target_delta = best_val * delta
+            temperature = -target_delta / log(P)
+            
+        # if stuck for a while, increase removal fraction to diversify (disabled logic)
+        elseif iter_since_improve >= stagnation_increase_after
+            #xi_current = min(xi_max, xi_current + xi_step_up)
             iter_since_improve = 0
         end
     end

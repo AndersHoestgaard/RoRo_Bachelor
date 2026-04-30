@@ -42,8 +42,7 @@ function grasp(deck, cargo;
         pcostshift = 250, 
         timecost = 500/60,
         handling_time = 7,
-        num_operators = 5,
-        normalise = false)  
+        num_operators = 1)  
 
     t1=time()
         m, n = size(deck)
@@ -138,7 +137,6 @@ function grasp(deck, cargo;
                             timecost = timecost,
                             handling_time = handling_time,
                             num_operators = num_operators,
-                            #normalised=normalise
                             )
 
             if val > best_val

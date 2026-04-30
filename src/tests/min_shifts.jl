@@ -37,7 +37,7 @@ function get_graph(deck) #Model deck as dir. weighted graph.
     m, n = size(deck)
     @assert n>m "Deck orientation is wrong"
 
-    bigM = 500
+    bigM = 10
     g = SimpleWeightedDiGraph(m * n)
         
     for i in 1:m

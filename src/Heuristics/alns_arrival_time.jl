@@ -378,12 +378,13 @@ function destroy_latest(deck, cargo_on, basket;xi=0.2)
     sort!(all_cargo, by= x->x.arr, rev=true)
     
     for carg in all_cargo
-        loc = findall(x->x==carg,all_cargo)
-        slot = deck[loc[1],loc[2]]
+        loc = findall(x->x==carg,cargo_on)[1]
+        #println(loc[1][2])
+        i,j = loc[1],loc[2]
 
-        push!(L,cargo_on[loc[1],loc[2]])
-        cargo_on[loc[1],loc[2]] = nothing
-        deck[loc[1],loc[2]] = 1
+        push!(L,cargo_on[i,j])
+        cargo_on[i,j] = nothing
+        deck[i,j] = 1
         if length(L) > init_cargo_length*xi
             return deck, L, cargo_on, basket
         end
@@ -399,20 +400,19 @@ function destroy_lanes(deck, cargo_on, basket;xi=0.2)
     h,w = size(deck)
     L=[]
     init_cargo_length = count(x->!isnothing(x),cargo_on)
-    println(init_cargo_length)
+
 
     for (i,row) in enumerate(shuffle(eachrow(deck)))
         for (j,slot) in collect(enumerate(reverse(row)))
             if isnothing(cargo_on[i,j])
                 continue
             else
-                println("slot: ",slot)
                 push!(L,cargo_on[i,j])
                 cargo_on[i,j] = nothing
                 deck[i,j] = 1
 
                 if length(L) > init_cargo_length*xi
-                    println(L)
+
                     return deck, L, cargo_on, basket
                 end
             end
@@ -706,7 +706,6 @@ function repair_random_basket(deck, cargo2place, cargo_on, basket)
     return deck,cargo_on, basket
 end
 
-
 function repair_in_basket(deck, cargo2place, cargo_on, basket)
     deck = deepcopy(deck)
     cargo2place = deepcopy(cargo2place)
@@ -719,11 +718,17 @@ function repair_in_basket(deck, cargo2place, cargo_on, basket)
         return deck, cargo_on, basket
     end
 
+    
     in_basket = sort(cargo2place, by = x-> x.arr)[end]
-    filter!(x->x!=in_basket, cargo2place)
-    push!(basket, in_basket)
+    vec_cargo_on = filter( x -> !isnothing(x), (vec(cargo_on)))
+    if !isempty(vec_cargo_on) && in_basket.arr >= sort(vec_cargo_on, by = x -> x.arr)[end].arr
+        if rand()<0.5
+            filter!(x->x!=in_basket, cargo2place)
+            push!(basket, in_basket)
+        end
+    end
 
-    inner_repair = rand([repair_random_basket, repair_greedy_basket, repair_neighbor_basket_v2, repair_placement_basket])
+    inner_repair = repair_greedy_basket #rand([repair_random_basket, repair_greedy_basket, repair_neighbor_basket_v2, repair_placement_basket])
 
     (deck,cargo_on,basket) = inner_repair(deck, cargo2place, cargo_on,basket)
 
