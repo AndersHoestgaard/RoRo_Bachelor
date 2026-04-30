@@ -1,11 +1,3 @@
-# ============================================================
-# test_mip_continuous.jl
-# Run from project root
-# MIP with continuous delay penalty matching obj_func.jl
-# Fix: removed j == ncols && continue to allow arcs to ramp
-# Sequential handling: only 1 cargo handled at a time
-# ============================================================
-
 using JuMP, HiGHS, Distributions, Random, Graphs,
       SimpleWeightedGraphs, StatsBase, Printf, Statistics
 
@@ -137,13 +129,16 @@ end
 
 # ============================================================
 # MIP solver
+# Objective: revenue - timecost * Dep[1] - shift cost
 # Sequential handling: only 1 cargo at a time
+# 1 hour time limit
 # ============================================================
-function solve_mip_continuous(inst, perfect_wt; verbose=false)
+function solve_mip_continuous(inst; verbose=false)
     (;S,E,S_no_exit,P,C,A,Gamma,L,U,Ac,h,r,R,
       C_load,C_unload,C_shift,timecost,M) = inst
 
     model = Model(HiGHS.Optimizer); set_silent(model)
+    set_optimizer_attribute(model, "time_limit", 3600.0)
 
     @variable(model, y[C], Bin)
     @variable(model, x[C,S], Bin)
@@ -151,9 +146,7 @@ function solve_mip_continuous(inst, perfect_wt; verbose=false)
     @variable(model, d[C,S,P])
     @variable(model, f[C,A,P] >= 0)
     @variable(model, ST[C,P] >= 0)
-    @variable(model, Dep[P] >= 0)
-    @variable(model, delay >= 0)
-    # binary variable: z[c1,c2] = 1 if c1 handled before c2
+    @variable(model, Dep[1:1] >= 0)
     @variable(model, z[C,C], Bin)
 
     @constraint(model,[c in C,a in A,p in P],
@@ -161,10 +154,8 @@ function solve_mip_continuous(inst, perfect_wt; verbose=false)
 
     @objective(model, Max,
         sum(r[c]*y[c] for c in C)
-        - timecost * delay
+        - timecost * Dep[first(P)]
         - C_shift * sum(delta[c,s,p] for c in C,s in S,p in P))
-
-    @constraint(model, delay >= Dep[first(P)] - perfect_wt)
 
     @constraint(model,[c in C],
         sum(x[c,s] for s in S) == R[c]*y[c])
@@ -199,95 +190,87 @@ function solve_mip_continuous(inst, perfect_wt; verbose=false)
         end
     end
 
-    # arrival time constraint
     @constraint(model,[c in C],
         ST[c,L[c]] >= Ac[c] - M*(1-y[c]))
 
-    # sequential handling — only 1 cargo at a time
-    # z[c1,c2] = 1 means c1 is handled before c2
     for c1 in C, c2 in C
         c1 == c2 && continue
-        # z[c1,c2] + z[c2,c1] == 1 — one must come before the other
         @constraint(model, z[c1,c2] + z[c2,c1] == 1)
-        # if c1 before c2: ST[c2] >= ST[c1] + h[c1] - M*(1-z[c1,c2])
         @constraint(model,
             ST[c2,L[c2]] >= ST[c1,L[c1]] + h[c1] - M*(1-z[c1,c2]))
-        # if c2 before c1: ST[c1] >= ST[c2] + h[c2] - M*(1-z[c2,c1])
         @constraint(model,
             ST[c1,L[c1]] >= ST[c2,L[c2]] + h[c2] - M*(1-z[c2,c1]))
     end
 
-    for p in P, c in union(C_load[p],C_unload[p])
-        @constraint(model, Dep[p] >= ST[c,p]+h[c])
+    for c in C_load[1]
+        @constraint(model, Dep[1] >= ST[c,1]+h[c])
     end
-    @constraint(model,[p in 1:length(P)-1],
-        Dep[P[p+1]] >= Dep[P[p]])
 
     t_start = time()
     optimize!(model)
     t_mip   = round(time()-t_start, digits=2)
     status  = termination_status(model)
 
-    if status == OPTIMAL
-        obj        = objective_value(model)
-        n_accepted = sum(value(y[c])>0.5 ? 1 : 0 for c in C)
-        n_shifts   = sum(value(delta[c,s,p])>0.5 ? 1 : 0
-                         for c in C,s in S,p in P)
-        dep1      = value(Dep[first(P)])
-        delay_val = value(delay)
+    if status == OPTIMAL || status == MOI.TIME_LIMIT
+        if primal_status(model) == MOI.FEASIBLE_POINT
+            obj        = objective_value(model)
+            n_accepted = sum(value(y[c])>0.5 ? 1 : 0 for c in C)
+            n_shifts   = sum(value(delta[c,s,p])>0.5 ? 1 : 0
+                             for c in C,s in S,p in P)
+            dep1      = value(Dep[first(P)])
 
-        if verbose
-            println("\nCargo decisions:")
-            for c in C
-                if value(y[c])>0.5
-                    slots=[s for s in S if value(x[c,s])>0.5]
-                    println("  Cargo $c → accepted, slot: $slots, port: $(U[c]), arr: $(round(Ac[c],digits=2)), rev: $(r[c])")
-                else
-                    println("  Cargo $c → rejected, port: $(U[c]), arr: $(round(Ac[c],digits=2)), rev: $(r[c])")
+            if verbose
+                println("\nCargo decisions:")
+                for c in C
+                    if value(y[c])>0.5
+                        slots=[s for s in S if value(x[c,s])>0.5]
+                        println("  Cargo $c → accepted, slot: $slots, port: $(U[c]), arr: $(round(Ac[c],digits=2)), rev: $(r[c])")
+                    else
+                        println("  Cargo $c → rejected, port: $(U[c]), arr: $(round(Ac[c],digits=2)), rev: $(r[c])")
+                    end
                 end
+                println("\nHandling order:")
+                accepted = [c for c in C if value(y[c])>0.5]
+                sorted_by_st = sort(accepted, by=c->value(ST[c,L[c]]))
+                for c in sorted_by_st
+                    println("  Cargo $c: start=$(round(value(ST[c,L[c]]),digits=2)) min, finish=$(round(value(ST[c,L[c]])+h[c],digits=2)) min, arr=$(round(Ac[c],digits=2)) min")
+                end
+                println("\nDeparture time:")
+                println("  Port 1: $(round(value(Dep[1]),digits=2)) min")
+                println("\nObjective breakdown:")
+                rev        = sum(r[c] for c in C if value(y[c])>0.5)
+                dep_cost   = round(timecost * dep1, digits=2)
+                shift_cost = round(C_shift * n_shifts, digits=2)
+                println("  Revenue:    $(round(rev,digits=2))€")
+                println("  Dep[1]:     $(round(dep1,digits=2)) min")
+                println("  Dep cost:   $(dep_cost)€")
+                println("  Shifts:     $n_shifts")
+                println("  Shift cost: $(shift_cost)€")
+                println("  Total obj:  $(round(obj,digits=2))€")
+                println("  Status:     $status")
             end
-            println("\nHandling order:")
-            accepted = [c for c in C if value(y[c])>0.5]
-            sorted_by_st = sort(accepted, by=c->value(ST[c,L[c]]))
-            for c in sorted_by_st
-                println("  Cargo $c: start=$(round(value(ST[c,L[c]]),digits=2)) min, finish=$(round(value(ST[c,L[c]])+h[c],digits=2)) min, arr=$(round(Ac[c],digits=2)) min")
-            end
-            println("\nDeparture times:")
-            for p in P
-                println("  Port $p: $(round(value(Dep[p]),digits=2)) min")
-            end
-            println("\nObjective breakdown:")
-            rev = sum(r[c] for c in C if value(y[c])>0.5)
-            println("  Revenue:    $(round(rev,digits=2))€")
-            println("  Delay:      $(round(delay_val,digits=2)) min")
-            println("  Delay cost: $(round(timecost*delay_val,digits=2))€")
-            println("  Shifts:     $n_shifts")
-            println("  Shift cost: $(round(C_shift*n_shifts,digits=2))€")
-            println("  Total obj:  $(round(obj,digits=2))€")
-        end
 
-        return (obj=obj, n_accepted=n_accepted, n_shifts=n_shifts,
-                dep1=dep1, delay=delay_val,
-                status=status, time=t_mip), model
-    else
-        return (obj=nothing, n_accepted=0, n_shifts=0,
-                dep1=0.0, delay=0.0,
-                status=status, time=t_mip), model
+            return (obj=obj, n_accepted=n_accepted, n_shifts=n_shifts,
+                    dep1=dep1, status=status, time=t_mip), model
+        end
     end
+
+    return (obj=nothing, n_accepted=0, n_shifts=0,
+            dep1=0.0, status=status, time=t_mip), model
 end
 
 # ============================================================
 # Run on instances
 # ============================================================
 function run_mip_on_instances(instances, label; h_val=7, verbose=false)
-    println("="^90)
-    println("MIP — Continuous delay penalty — $label")
+    println("="^105)
+    println("MIP — $label")
     println("Parameters: timecost=500/60 €/min, C_shift=250, handling_time=$(h_val) min")
-    println("="^90)
-    @printf("%-12s  %10s  %8s  %8s  %10s  %10s  %8s\n",
+    println("="^105)
+    @printf("%-12s  %10s  %8s  %8s  %10s  %10s  %8s  %12s\n",
         "Instance", "MIP Obj", "Acc", "Shifts",
-        "Revenue", "Delay cost", "Time (s)")
-    println("-"^90)
+        "Revenue", "Dep cost", "Time (s)", "Status")
+    println("-"^105)
 
     obj_vals   = Float64[]
     times      = Float64[]
@@ -297,31 +280,30 @@ function run_mip_on_instances(instances, label; h_val=7, verbose=false)
     for (i, cargo) in enumerate(instances)
         inst = build_mip_from_cargo(cargo, h_val,
             pcostshift=250, timecost=500/60)
-        tmp_deck, tmp_cargo_on = load_random(copy(deckAmat), copy(cargo))
-        perfect_wt = perfect_wait_time(tmp_deck, tmp_cargo_on)
-        mip_result, _ = solve_mip_continuous(inst, perfect_wt,
-                             verbose=verbose)
+        mip_result, _ = solve_mip_continuous(inst, verbose=verbose)
 
         if mip_result.obj !== nothing
-            rev        = sum(inst.r[c] for c in inst.C)
-            delay_cost = round((500/60)*mip_result.delay, digits=2)
-            @printf("%-12s  %10.2f  %8d  %8d  %10.2f  %10.2f  %8.2f\n",
+            rev      = sum(inst.r[c] for c in inst.C)
+            dep_cost = round((500/60)*mip_result.dep1, digits=2)
+            @printf("%-12s  %10.2f  %8d  %8d  %10.2f  %10.2f  %8.2f  %12s\n",
                 "inst $i",
                 mip_result.obj,
                 mip_result.n_accepted,
                 mip_result.n_shifts,
                 rev,
-                delay_cost,
-                mip_result.time)
-            println("  ↳ PWT: $(round(perfect_wt,digits=2)) min  |  Delay: $(round(mip_result.delay,digits=2)) min")
+                dep_cost,
+                mip_result.time,
+                string(mip_result.status))
+            println("  ↳ Dep[1]: $(round(mip_result.dep1,digits=2)) min")
             push!(obj_vals,   mip_result.obj)
             push!(times,      mip_result.time)
             push!(acc_vals,   mip_result.n_accepted)
             push!(shift_vals, mip_result.n_shifts)
         else
-            @printf("%-12s  %10s  %8d  %8d  %10s  %10s  %8.2f\n",
-                "inst $i", "INFEASIBLE",
-                0, 0, "-", "-", mip_result.time)
+            @printf("%-12s  %10s  %8d  %8d  %10s  %10s  %8.2f  %12s\n",
+                "inst $i", "-",
+                0, 0, "-", "-", mip_result.time,
+                string(mip_result.status))
             push!(obj_vals,   NaN)
             push!(times,      mip_result.time)
             push!(acc_vals,   0)
@@ -329,25 +311,53 @@ function run_mip_on_instances(instances, label; h_val=7, verbose=false)
         end
     end
 
-    println("="^90)
+    println("="^105)
     println("Summary:")
     valid = filter(!isnan, obj_vals)
     @printf("  Mean obj:      %.2f\n", isempty(valid) ? 0.0 : mean(valid))
     @printf("  Mean time:     %.2f s\n", mean(times))
     @printf("  Mean accepted: %.1f / %d\n", mean(acc_vals), length(instances[1]))
     @printf("  Mean shifts:   %.2f\n", mean(shift_vals))
-    println("="^90)
+    println("="^105)
 
     return obj_vals, times, acc_vals, shift_vals
 end
 
 # ============================================================
-# Training instances — DeckA 20 cargo 6 ports
+# Sweep: 5, 10, 15, 20, 25, 30 cargo
+# 5 instances per size, seed 1:5, num_ports=6, h=7
+# 1 hour time limit per instance
 # ============================================================
-Random.seed!(4242)
-trainsize  = 20
-seedstrain = [rand(1:10000) for i in 1:trainsize]
-deckA20    = [genereate_cargo_structs(floor(Int,20), seed=i, num_ports=6) for i in seedstrain]
+println("="^105)
+println("Cargo size sweep: n = 5, 10, 15, 20, 25, 30, 35")
+println("5 instances per size, seed 1:5, num_ports=6, h=7, time limit=3600s")
+println("="^105)
+@printf("%-8s  %-10s  %10s  %8s  %8s  %10s  %8s  %12s\n",
+    "n", "Instance", "MIP Obj", "Acc", "Shifts", "Dep[1]", "Time(s)", "Status")
+println("-"^105)
 
-# --- run first instance with first 5 cargo ---
-run_mip_on_instances([deckA20[1][1:5]], "DeckA 5 cargo 6 ports", h_val=7, verbose=true)
+for n in [5, 10, 15, 20, 25, 30, 35]
+    for seed in 1:5
+        cargo  = genereate_cargo_structs(n, seed=seed, num_ports=6)
+        inst   = build_mip_from_cargo(cargo, 7, pcostshift=250, timecost=500/60)
+        result, _ = solve_mip_continuous(inst, verbose=false)
+        if result.obj !== nothing
+            @printf("%-8d  %-10s  %10.2f  %8d  %8d  %10.2f  %8.2f  %12s\n",
+                n, "seed $seed",
+                result.obj, result.n_accepted, result.n_shifts,
+                result.dep1, result.time, string(result.status))
+        else
+            @printf("%-8d  %-10s  %10s  %8d  %8d  %10s  %8.2f  %12s\n",
+                n, "seed $seed",
+                "-", 0, 0, "-", result.time, string(result.status))
+        end
+    end
+    println("-"^105)
+end
+println("="^105)
+
+println("\n--- Verbose run: n=5, seed=1 ---")
+let cargo = genereate_cargo_structs(5, seed=1, num_ports=6)
+    inst = build_mip_from_cargo(cargo, 7, pcostshift=250, timecost=500/60)
+    solve_mip_continuous(inst, verbose=true)
+end
