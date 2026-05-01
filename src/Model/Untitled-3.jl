@@ -356,22 +356,20 @@ println("="^115)
 println("-"^115)
 
 for n in [5, 10, 15, 20, 25, 30, 35]
-    for seed in 1:5
-        cargo  = genereate_cargo_structs(n, seed=seed, num_ports=6)
-        inst   = build_mip_from_cargo(cargo, 7, pcostshift=250, timecost=500/60)
-        result, _ = solve_mip_continuous(inst, verbose=false)
-        if result.obj !== nothing
-            @printf("%-8d  %-10s  %10.2f  %10.2f  %6.2f%%  %8d  %8d  %10.2f  %8.2f  %12s\n",
-                n, "seed $seed",
-                result.obj, result.bound, result.gap,
-                result.n_accepted, result.n_shifts,
-                result.dep1, result.time, string(result.status))
-        else
-            @printf("%-8d  %-10s  %10s  %10s  %7s  %8d  %8d  %10s  %8.2f  %12s\n",
-                n, "seed $seed",
-                "-", "-", "-", 0, 0, "-",
-                result.time, string(result.status))
-        end
+    cargo  = genereate_cargo_structs(n, seed=n, num_ports=6)
+    inst   = build_mip_from_cargo(cargo, 7, pcostshift=250, timecost=500/60)
+    result, _ = solve_mip_continuous(inst, verbose=false)
+    if result.obj !== nothing
+        @printf("%-8d  %-10s  %10.2f  %10.2f  %6.2f%%  %8d  %8d  %10.2f  %8.2f  %12s\n",
+            n, "seed $n",
+            result.obj, result.bound, result.gap,
+            result.n_accepted, result.n_shifts,
+            result.dep1, result.time, string(result.status))
+    else
+        @printf("%-8d  %-10s  %10s  %10s  %7s  %8d  %8d  %10s  %8.2f  %12s\n",
+            n, "seed $n",
+            "-", "-", "-", 0, 0, "-",
+            result.time, string(result.status))
     end
     println("-"^115)
 end
