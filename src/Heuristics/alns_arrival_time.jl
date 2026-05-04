@@ -199,7 +199,7 @@ function destroy_port_basket(deck, cargo_on, basket;xi=0.2)
     if isempty(unique(deck)[unique(deck).>2])
         port2rem = 3
     else
-        if rand(1:2) == 1
+        if rand() < 0.5
             port2rem = rand(unique(deck)[unique(deck).>2])
         else
             port2rem = rand(unique(deck)[unique(deck).>2],2)
@@ -634,12 +634,18 @@ function repair_placement_basket(deck, cargo2place,cargo_on, basket)
     goal_slots = get_ramp_loc(g_deck)
     goal_pos = [(loc[1]-1)*n + loc[2] for loc in goal_slots]
 
+    # Optimization: Run dijkstra from EACH GOAL, not from each free position
+    # This reduces calls from O(n_free) to O(n_goals), typically 10-100x faster
+    all_dists = zeros(m * n)
+    for goal in goal_pos
+        dsp = dijkstra_shortest_paths(g, goal)
+        all_dists .= min.(all_dists, dsp.dists)
+    end
+
     furthest_locs = []
     for loc in free
-        pos  = (loc[1]-1)*n + loc[2]
-        dsp = dijkstra_shortest_paths(g, pos) 
-
-        dis = minimum([dsp.dists[i] for i in goal_pos])
+        pos = (loc[1]-1)*n + loc[2]
+        dis = all_dists[pos]
         push!(furthest_locs,[loc,dis])
     end
     sort!(furthest_locs, by = x -> x[2],rev=true)

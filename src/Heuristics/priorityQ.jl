@@ -38,7 +38,7 @@ function pri_rules1(deck,cargo)
     return deck, cargo_on
 end
 
-function pri_rules2(deck,cargo; a=0.5) 
+function pri_rules2(deck,cargo; a=0.0) 
     cargoDict = Dict()
     scoreList = []
     deck = copy(deck)

@@ -15,7 +15,7 @@ using Random
 function alns_hansen_basket(deck, cargo;
         destroy_ops = [destroy_area_basket ,destroy_neighbor_basket_v2, destroy_port_basket, destroy_random_basket, destroy_shifting_cost_basket,destroy_lanes,destroy_latest],
         repair_ops = [repair_neighbor_basket_v2, repair_placement_basket, repair_random_basket,repair_in_basket, repair_out_basket],
-        init = load_random,
+        init = pri_rules2,
         iterations = 200000,
         time_lim = 10000,
         segment = 100,
@@ -48,6 +48,8 @@ function alns_hansen_basket(deck, cargo;
 
     w_d = ones(nd)
     w_r = ones(nr)
+    w_r[4] = 0.1
+
 
     his_w_d = []
     his_w_r = []
