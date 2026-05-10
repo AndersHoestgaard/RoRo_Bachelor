@@ -75,6 +75,7 @@ function build_mip_from_cargo(cargo_list, h_val;
                 push!(A, ((i,j), t))
                 cl = Tuple{Int,Int}[]
                 (i-1,j)   in S && push!(cl, (i-1,j))
+                (i-1,j+1) in S && push!(cl, (i-1,j+1))
                 (i,  j+1) in S && push!(cl, (i,  j+1))
                 Gamma[((i,j), t)] = cl
             end
@@ -87,6 +88,7 @@ function build_mip_from_cargo(cargo_list, h_val;
                 push!(A, ((i,j), t))
                 cl = Tuple{Int,Int}[]
                 (i+1,j)   in S && push!(cl, (i+1,j))
+                (i+1,j+1) in S && push!(cl, (i+1,j+1))
                 (i,  j+1) in S && push!(cl, (i,  j+1))
                 Gamma[((i,j), t)] = cl
             end
