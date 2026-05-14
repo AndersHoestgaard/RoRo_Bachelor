@@ -1,20 +1,3 @@
-# sensitivity_analysis.jl — run from repo root:
-#   julia --project src/tests/sensitivity_analysis.jl A   (Deck A)
-#   julia --project src/tests/sensitivity_analysis.jl B   (Deck B / Tor Magnolia)
-#   julia --project src/tests/sensitivity_analysis.jl C   (Deck C)
-#
-# One-at-a-time sensitivity analysis on problem parameters:
-#   revenue, fuel cost, handling time, mean inter-arrival time, num_operators.
-#
-# Design:
-#   - Linear fuel cost, 1 tugmaster baseline (matches MIP formulation)
-#   - ALNS uses random initialisation (load_random, default)
-#   - Test set: last `test_size` instances from each cargo array (train/test split)
-#   - CIs: 95% (1.96 × SE) across test instances
-#
-# Note on percent_arrived: wait_time() supports it, but evaluate_sol() does not
-# thread it through, so it cannot be swept without modifying obj_func.jl.
-
 t_load = time()
 println("Loading dependencies...")
 

@@ -1,20 +1,3 @@
-# test3_convergence.jl  —  run from project root:
-#   julia --project src/tests/test3_convergence.jl
-#
-# 4-scenario convergence analysis:
-#   1. Deck A  – low fill  (20% of 63 slots = 13 cargo)
-#   2. Deck A  – high fill (90% of 63 slots = 56 cargo)
-#   3. Deck B  – low fill  (20% of 58 slots = 12 cargo)   (Tor Magnolia)
-#   4. Deck B  – high fill (90% of 58 slots = 52 cargo)
-#
-# Design: N_INSTANCES fresh instances × N_RUNS independent stochastic runs
-#         × MAX_ITER fixed iterations per run (no early stop).
-# PGBK = Percentage Gap to Best Known, averaged across all N_INSTANCES×N_RUNS runs.
-# Params match sensitivity_analysis.jl baseline (load_random, linear fuel cost, 1 tugmaster).
-#
-# Expected runtime: ~10 min (low-fill scenarios) + ~5-6 h (high-fill) = ~6 h total.
-# Output: convergence_sc1.png ... convergence_sc4.png + convergence_deckAB.png
-
 using Statistics, Plots, Printf, Random
 
 include(joinpath(pwd(), "src/deck_representation.jl"))
@@ -45,9 +28,9 @@ deckBmat = create_deck(deckB_struct)
 
 # ── Parameters ────────────────────────────────────────────────────────────────
 
-const N_INSTANCES   = 1       # fixed instance per scenario — all runs compete on same problem
-const N_RUNS        = 20      # stochastic runs to reveal algorithm variance
-const MAX_ITER      = 50_000  # long enough to reach plateau
+const N_INSTANCES   = 1
+const N_RUNS        = 20
+const MAX_ITER      = 50_000
 const STEP          = 500
 const N_CHECKPOINTS = MAX_ITER ÷ STEP
 
@@ -56,8 +39,8 @@ const PCOSTSHIFT  = 250
 const HANDLING    = 7
 const NUM_OPS     = 1
 
-const DECKA_LEGAL = 63   # matches legal_cap in train_and_test_for_deckA.jl
-const DECKB_LEGAL = 58   # matches legal_cap in train_and_test_for_deckB.jl
+const DECKA_LEGAL = 63
+const DECKB_LEGAL = 58
 
 scenarios = [
     (name = "DeckA – Low fill (20%)",  deck = deckAmat, n_cargo = round(Int, 0.20 * DECKA_LEGAL)),
@@ -223,8 +206,8 @@ smoke_test()
 
 # ── Run all scenarios ─────────────────────────────────────────────────────────
 
-all_results  = []   # [scenario][instance][run] → Vector{Float64} of N_CHECKPOINTS values
-scenario_spi = []   # avg seconds per iteration per scenario
+all_results  = []
+scenario_spi = []
 
 t_total = time()
 all_results, scenario_spi = run_convergence(scenarios, scenario_instances, N_RUNS, MAX_ITER, STEP)

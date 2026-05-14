@@ -1,9 +1,3 @@
-# sensitivity_shifting_cost.jl — run from repo root:
-#   julia --project src/tests/sensitivity_shifting_cost.jl
-#
-# Sensitivity analysis on pcostshift (€/shift) only.
-# All other parameters held at baseline.
-
 t_load = time()
 println("Loading dependencies...")
 
@@ -82,7 +76,7 @@ smoke_test_shift()
 
 t_start = time()
 test_A   = test_set(cargo_a_90_6)
-baseline = 250   # matches BASE_PCOSTSHIFT in sensitivity_analysis.jl
+baseline = 250
 
 println("═"^68)
 println("  Shifting Cost Sensitivity — Deck A   ($(length(test_A)) test instances)")
