@@ -55,7 +55,7 @@ function build_mip_from_cargo(cargo_list, h_val;
         t = (i, j+1)
         if j+1 <= ncols && t in S
             push!(A, ((i,j), t))
-            Gamma[((i,j), t)] = Tuple{Int,Int}[]
+            Gamma[((i,j), t)] = [(i, j+1)]
         end
 
         # West
