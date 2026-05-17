@@ -206,8 +206,8 @@ function plot_graph(deck, g::SimpleWeightedDiGraph)
                 ax,
                 [x1], [y1],
                 [dx], [dy],
-                arrowsize = 11,
-                lengthscale = 0.8,
+                arrowsize = 15,
+                lengthscale = 0.4,
                 color = :black,
                 linewidth = 1
             )
@@ -217,19 +217,29 @@ function plot_graph(deck, g::SimpleWeightedDiGraph)
                 ax,
                 [x1], [y1],
                 [dx], [dy],
-                arrowsize = 11,
-                lengthscale = 0.8,
+                arrowsize = 15,
+                lengthscale = 0.4,
                 color = :blue,
                 linewidth = 1
             )
         
+        elseif weight == 2
+            arrows!(
+                ax,
+                [x1], [y1],
+                [dx], [dy],
+                arrowsize = 15,
+                lengthscale = 0.4,
+                color = :pink,
+                linewidth = 1
+            )
         else
             arrows!(
                 ax,
                 [x1], [y1],
                 [dx], [dy],
-                arrowsize = 11,
-                lengthscale = 0.8,
+                arrowsize = 15,
+                lengthscale = 0.4,
                 color = :red,
                 linewidth = 1
             )
@@ -237,14 +247,7 @@ function plot_graph(deck, g::SimpleWeightedDiGraph)
             midx = (x1 + x2) / 2
             midy = (y1 + y2) / 2
 
-            text!(
-                ax,
-                "$(round(weight, digits=2))",
-                position = (midx, midy),
-                fontsize = 6,
-                color = :black,
-                align = (:center, :center)
-            )
+            
         end
     end
 
@@ -337,4 +340,76 @@ function plot_alns_weights_his(results)
     else
         display(plots[1])
     end
+end
+
+function plot_four_decks(deck1, deck2, deck3, deck4; 
+                        titles=["Deck 1", "Deck 2", "Deck 3", "Deck 4"],
+                        horizontal=true)
+    """
+    Plot 4 decks in a 2x2 grid with a single shared legend.
+    
+    Arguments:
+    - deck1, deck2, deck3, deck4: Deck matrices to plot
+    - titles: Optional vector of titles for each deck [default: ["Deck 1", "Deck 2", "Deck 3", "Deck 4"]]
+    - horizontal: Boolean for deck orientation [default: true]
+    
+    Returns:
+    - Figure with 2x2 grid of deck plots and shared legend
+    """
+    
+    # Find maximum value across all decks to determine color mapping
+    max_val = maximum([maximum(deck1), maximum(deck2), maximum(deck3), maximum(deck4)])
+    num_of_ports = max_val - 2
+    
+    # Build category mapping
+    category_names = Dict(
+        0 => "unavailable",
+        1 => "Unoccupied",
+        2 => "Ramp"
+    )
+    for i in 1:num_of_ports
+        category_names[i+2] = "Port $i"
+    end
+    
+    labels = sort(collect(keys(category_names)))
+    names = [category_names[label] for label in labels]
+    
+    # Build color dictionary
+    color_dict = Dict(
+        0 => :gray,      # unavailable
+        1 => :white,     # Unoccupied
+        2 => :green      # Ramp
+    )
+    
+    port_colors = [:red, :yellow, :orange, :blue, :pink, :brown, :green1, :olive, :cyan]
+    for i in 1:num_of_ports
+        color_dict[i+2] = port_colors[i]
+    end
+    
+    colors = [color_dict[label] for label in labels]
+    
+    # Create figure with 2x2 grid
+    fig = Figure(size = (1000, 900))
+    
+    # Plot each deck
+    decks = [deck1, deck2, deck3, deck4]
+    positions = [(1,1), (1,2), (2,1), (2,2)]
+    
+    for (idx, (deck, pos)) in enumerate(zip(decks, positions))
+        ax = Axis(fig[pos...], aspect = DataAspect(), yreversed=true, title = titles[idx])
+        
+        if horizontal
+            CairoMakie.heatmap!(ax, deck, colormap = colors, colorrange = (0, max_val))
+        else
+            CairoMakie.heatmap!(ax, transpose(deck), colormap = colors, colorrange = (0, max_val))
+        end
+        
+        hidedecorations!(ax)
+    end
+    
+    # Add shared legend
+    legend_elements = [PolyElement(color = colors[i], strokecolor = :black) for i in 1:length(labels)]
+    Legend(fig[1:2, 3], legend_elements, names, "Category", framevisible=true)
+    
+    fig
 end
