@@ -1,9 +1,9 @@
 using Random, Distributions
 function generate_cargo_type(n;rng = nothing)
     if rng !== nothing
-        return rand(rng,["car" "truck" "machinery" "container"],n)
+        return rand(rng,["car", "truck", "machinery", "container"],n)
     else
-        return rand(["car" "truck" "machinery" "container"],n)
+        return rand(["car", "truck", "machinery", "container"],n)
     end
 end
 
