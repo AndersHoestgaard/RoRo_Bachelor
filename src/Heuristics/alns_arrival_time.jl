@@ -487,7 +487,7 @@ end
 function repair_neighbor_basket(deck, cargo2place,cargo_on, basket)
     deck = copy(deck)
     cargo_on = copy(cargo_on)
-
+    shuffle!(cargo2place)
 
     h,w = size(deck)
 
