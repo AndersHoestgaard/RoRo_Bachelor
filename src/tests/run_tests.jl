@@ -10,7 +10,7 @@ function run_alns_test_on_instance(deck, instances; patience = 20000)
 
 
     for cargo in instances
-        d,c,h,t = alns_hansen_basket(deck, cargo, early_stop_thres=patience, print_status=false,time_lim=30*60)
+        d,c,h,t = alns_hansen_basket(deck, cargo, early_stop_thres=patience, print_status=false,time_lim=30*60,iterations=3000)
         push!(times,t)
         push!(shifts, min_shift_all_cargo(d))
         push!(obvals,evaluate_sol(d,c))
