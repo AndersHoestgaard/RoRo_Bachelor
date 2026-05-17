@@ -14,7 +14,7 @@ function param_tune(
     sig1 = 33,
     sig2 = 9,
     sig3 = 3,
-    xi=0.1,
+    xi=0.4,
     patience = 10000
 )
 
