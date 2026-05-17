@@ -37,7 +37,7 @@ function get_traversal_order(S, d, m, n)
 end
 
 function grasp(deck, cargo;
-        max_iter = 2000,
+        max_iter = 500,
         max_time = 180,
         pcostshift = 250, 
         timecost = 500/60,
@@ -69,7 +69,7 @@ function grasp(deck, cargo;
 
     count_D = zeros(7)
     count_L = zeros(5)   
-    count_I = zeros(12)   
+    count_I = zeros(2)   
 
 
     for it in 1:max_iter
