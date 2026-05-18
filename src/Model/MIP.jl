@@ -1,12 +1,4 @@
-# ============================================================
-# test_mip_continuous.jl
-# Run from project root
-# MIP with continuous delay penalty matching obj_func.jl
-# Fix: removed j == ncols && continue to allow arcs to ramp
-# Sequential handling: only 1 cargo at a time
-# Objective: revenue - timecost * Dep[1] - shift cost
-# No perfect wait time — charge full departure time
-# ============================================================
+
 
 using JuMP, HiGHS, Distributions, Random, Graphs,
       SimpleWeightedGraphs, StatsBase, Printf, Statistics
