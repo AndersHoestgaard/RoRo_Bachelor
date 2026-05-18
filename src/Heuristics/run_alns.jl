@@ -2,7 +2,7 @@
 include(joinpath(pwd(), "src/Heuristics/alns_arrival_time.jl"))
 include(joinpath(pwd(), "src/Heuristics/grasp.jl"))
 
-include("obj_func.jl")
+include(joinpath(pwd(), "src/tests/obj_func.jl"))
 
 using StatsBase: sample, Weights
 using Random
