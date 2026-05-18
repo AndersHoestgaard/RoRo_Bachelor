@@ -1,5 +1,5 @@
-include("min_shifts.jl")
-include("waiting_time.jl")
+include(joinpath(pwd(),"src/Utils/min_shifts.jl"))
+include(joinpath(pwd(),"src/Utils/waiting_time.jl"))
 
 
 function evaluate_sol(deck, cargo_on; 
