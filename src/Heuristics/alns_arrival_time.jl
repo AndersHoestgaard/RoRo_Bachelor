@@ -1,5 +1,5 @@
 using Random
-include(joinpath(pwd(),"src/tests/min_shifts.jl"))
+include(joinpath(pwd(),"src/Utils/min_shifts.jl"))
 include(joinpath(pwd(),"src/Heuristics/priorityQ.jl"))
 
 # Destroy operators
